@@ -15,13 +15,20 @@ export type { MPLoginParams, MPAuthConfig } from '@core/miniprogram';
 // ==================== 类型 ====================
 export type {
   AuthConfig,
+  AuthorizeOptions,
   StorageAdapter,
   HttpClient,
   HttpRequestConfig,
   HttpResponse,
   TokenResponse,
   TokenStore,
-  UserInfo,
+  // Multi-audience
+  AudienceScope,
+  MultiAudienceTokenResponse,
+  MultiAudienceTokenStore,
+  // User
+  ProfileResponse,
+  UpdateProfileRequest,
   JWTClaims,
   AuthorizeParams,
   PKCEParams,
@@ -52,7 +59,7 @@ export { AuthError, ErrorCodes } from '@/types';
 // ==================== 工具函数 ====================
 export { generatePKCE, generateCodeVerifier, generateCodeChallenge, isValidCodeVerifier } from '@utils/pkce';
 export { parseJWT, isJWTExpired, getJWTExpiresAt, getJWTScope } from '@utils/jwt';
-export { BrowserStorageAdapter, MemoryStorageAdapter, TokenStorageManager, StorageKeys } from '@utils/storage';
+export { BrowserStorageAdapter, MemoryStorageAdapter, TokenStorageManager, FlowStateManager, StorageKeys } from '@utils/storage';
 
 // ==================== 命名空间导出 ====================
 import { auth, parseAuthCallback, isAuthCallback } from '@/auth';

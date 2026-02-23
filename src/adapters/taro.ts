@@ -212,27 +212,6 @@ export class TaroAuth {
   }
 
   /**
-   * 获取用户信息
-   */
-  async getUserInfo() {
-    return this.auth.getUserInfo();
-  }
-
-  /**
-   * 更新用户信息
-   */
-  async updateUserInfo(data: { nickname?: string; avatar?: string }) {
-    return this.auth.updateUserInfo(data);
-  }
-
-  /**
-   * 绑定手机号
-   */
-  async bindPhone(phoneCode: string) {
-    return this.auth.bindPhone(phoneCode);
-  }
-
-  /**
    * 登出
    */
   async logout(): Promise<void> {

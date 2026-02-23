@@ -37,11 +37,17 @@ export interface AuthConfig {
   httpClient?: HttpClient;
   /** 启用调试日志 */
   debug?: boolean;
+  /**
+   * 允许跳转的认证域名白名单（可选）
+   * 如果配置，authorize() 生成的 URL 会被校验，防止恶意配置篡改导致跳转到恶意地址
+   * 未配置时自动从 endpoint 提取域名
+   */
+  allowedAuthHosts?: string[];
 }
 
 /** 授权请求选项 */
 export interface AuthorizeOptions {
-  /** 目标服务 ID（必填） */
+  /** 目标服务 ID（必填，授权阶段只能指定一个 audience） */
   audience: string;
   /** 请求的 scope 列表（必填） */
   scopes: string[];
@@ -49,6 +55,12 @@ export interface AuthorizeOptions {
   state?: string;
   /** 重定向 URI（覆盖配置中的默认值） */
   redirectUri?: string;
+  /**
+   * 多 audience 配置（可选）
+   * 如果指定，handleCallback 时会使用 JSON 模式请求多个 audience 的 token
+   * key = audience (service_id)，value = 该 audience 的 scope 配置
+   */
+  audiences?: Record<string, AudienceScope>;
 }
 
 // ==================== 存储适配器 ====================
@@ -64,7 +76,7 @@ export interface StorageAdapter {
 
 /** HTTP 请求配置 */
 export interface HttpRequestConfig {
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   url: string;
   headers?: Record<string, string>;
   body?: string | FormData;
@@ -85,7 +97,7 @@ export interface HttpClient {
 
 // ==================== Token 相关 ====================
 
-/** Token 响应 */
+/** Token 响应（单 audience） */
 export interface TokenResponse {
   access_token: string;
   refresh_token?: string;
@@ -94,13 +106,25 @@ export interface TokenResponse {
   scope?: string;
 }
 
-/** Token 存储 */
+/** 多 audience token 交换请求中的单个 audience scope 配置 */
+export interface AudienceScope {
+  /** 该 audience 请求的 scope，默认 "openid" */
+  scope?: string;
+}
+
+/** 多 audience token 交换响应：audience → TokenResponse */
+export type MultiAudienceTokenResponse = Record<string, TokenResponse>;
+
+/** Token 存储（单 audience） */
 export interface TokenStore {
   accessToken: string | null;
   refreshToken: string | null;
   expiresAt: number | null;
   scope: string | null;
 }
+
+/** 多 audience Token 存储 */
+export type MultiAudienceTokenStore = Record<string, TokenStore>;
 
 /** JWT Claims */
 export interface JWTClaims {
@@ -116,15 +140,22 @@ export interface JWTClaims {
 
 // ==================== 用户信息 ====================
 
-/** 用户信息 */
-export interface UserInfo {
-  sub: string;
-  openid?: string;
+/** 用户 Profile（从 iris /user/profile 获取，完整用户资料） */
+export interface ProfileResponse {
+  id: string;
   nickname?: string;
   picture?: string;
   email?: string;
+  email_verified: boolean;
   phone?: string;
-  [key: string]: unknown;
+}
+
+/** 更新 Profile 请求（JSON Merge Patch 语义，undefined = 不修改，null = 清除） */
+export interface UpdateProfileRequest {
+  nickname?: string | null;
+  picture?: string | null;
+  old_password?: string;
+  password?: string | null;
 }
 
 // ==================== 授权请求 ====================

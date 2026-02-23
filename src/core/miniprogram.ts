@@ -8,7 +8,6 @@ import type {
   StorageAdapter,
   HttpClient,
   TokenResponse,
-  UserInfo,
   AuthEvent,
   AuthEventListener,
   AuthEventType,
@@ -197,95 +196,6 @@ export class MiniProgramAuth {
 
     this.emit('token_refreshed', response.data);
     this.log('Token refreshed');
-
-    return response.data;
-  }
-
-  /**
-   * 获取用户信息
-   */
-  async getUserInfo(): Promise<UserInfo> {
-    const token = await this.getAccessToken();
-    if (!token) {
-      throw new AuthError(ErrorCodes.NOT_AUTHENTICATED, 'Not authenticated');
-    }
-
-    const response = await this.config.httpClient.request<UserInfo>({
-      method: 'GET',
-      url: `${this.config.issuer}/api/user/profile`,
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.status !== 200) {
-      throw new AuthError(ErrorCodes.SERVER_ERROR, 'Failed to get user info');
-    }
-
-    return response.data;
-  }
-
-  /**
-   * 更新用户信息
-   */
-  async updateUserInfo(data: {
-    nickname?: string;
-    avatar?: string;
-  }): Promise<UserInfo> {
-    const token = await this.getAccessToken();
-    if (!token) {
-      throw new AuthError(ErrorCodes.NOT_AUTHENTICATED, 'Not authenticated');
-    }
-
-    const response = await this.config.httpClient.request<UserInfo>({
-      method: 'PUT',
-      url: `${this.config.issuer}/api/user/profile`,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (response.status !== 200) {
-      throw new AuthError(
-        ErrorCodes.SERVER_ERROR,
-        'Failed to update user info'
-      );
-    }
-
-    return response.data;
-  }
-
-  /**
-   * 绑定手机号
-   */
-  async bindPhone(phoneCode: string): Promise<UserInfo> {
-    const token = await this.getAccessToken();
-    if (!token) {
-      throw new AuthError(ErrorCodes.NOT_AUTHENTICATED, 'Not authenticated');
-    }
-
-    const response = await this.config.httpClient.request<UserInfo>({
-      method: 'POST',
-      url: `${this.config.issuer}/api/${this.config.idp}/profile`,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ phone_code: phoneCode }),
-    });
-
-    if (response.status !== 200) {
-      const error = response.data as unknown as {
-        error?: string;
-        error_description?: string;
-      };
-      throw new AuthError(
-        error?.error ?? ErrorCodes.SERVER_ERROR,
-        error?.error_description ?? 'Failed to bind phone'
-      );
-    }
 
     return response.data;
   }

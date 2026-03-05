@@ -293,18 +293,9 @@ export class Auth {
     this.listeners.get(event)?.delete(listener);
   }
 
-  // ==================== 内部实现 ====================
+  // ==================== Internals ====================
 
-  private emit(type: AuthEventType, data?: unknown): void {
-    const event: AuthEvent = { type, data };
-    this.listeners.get(type)?.forEach((fn) => fn(event));
-  }
-
-  private async requireToken(audience?: string): Promise<string> {
-    const token = await this.getAccessToken(audience);
-    if (!token) throw new AuthError(ErrorCodes.NOT_AUTHENTICATED, audience ? `Not authenticated for ${audience}` : 'Not authenticated');
-    return token;
-  }
+  // --- Token Exchange ---
 
   private async redeemCode(code: string, verifier: string, redirectUri: string | null): Promise<TokenResponse> {
     const body = new URLSearchParams({
@@ -315,73 +306,47 @@ export class Auth {
     });
     if (redirectUri) body.set('redirect_uri', redirectUri);
 
-    const res = await this.http.request<TokenResponse>({
-      method: 'POST',
-      url: `${this.config.endpoint}/api/token`,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
+    const { data } = await this.post<TokenResponse>(
+      '/api/token', body.toString(), 'application/x-www-form-urlencoded',
+    );
 
-    if (res.status !== 200) {
-      const err = res.data as unknown as { error?: string; error_description?: string };
-      throw new AuthError(err?.error ?? ErrorCodes.INVALID_GRANT, err?.error_description ?? 'Token exchange failed');
-    }
-
-    await this.tokens.persist(res.data.access_token, res.data.refresh_token ?? null);
-
-    if (res.data.id_token) {
-      await this.settleIdToken(res.data.id_token);
-    }
-
-    this.cleanupFlow();
-    this.emit('login', res.data);
-    return res.data;
+    await this.tokens.persist(data.access_token, data.refresh_token ?? null);
+    await this.settle(data);
+    return data;
   }
 
   private async redeemMultiAudience(code: string, verifier: string, redirectUri: string | null): Promise<TokenResponse> {
-    const reqBody: Record<string, unknown> = {
+    const payload: Record<string, unknown> = {
       grant_type: 'authorization_code',
       code,
       client_id: this.config.clientId,
       code_verifier: verifier,
     };
-    if (redirectUri) reqBody.redirect_uri = redirectUri;
+    if (redirectUri) payload.redirect_uri = redirectUri;
 
-    const res = await this.http.request<MultiAudienceTokenResponse>({
-      method: 'POST',
-      url: `${this.config.endpoint}/api/token`,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(reqBody),
-    });
+    const { data } = await this.post<MultiAudienceTokenResponse>(
+      '/api/token', JSON.stringify(payload), 'application/json',
+    );
 
-    if (res.status !== 200) {
-      const err = res.data as unknown as { error?: string; error_description?: string };
-      throw new AuthError(err?.error ?? ErrorCodes.INVALID_GRANT, err?.error_description ?? 'Multi-audience token exchange failed');
+    const entries = Object.entries(data);
+    if (entries.length === 0) {
+      throw new AuthError(ErrorCodes.INVALID_GRANT, 'Empty token response');
     }
 
-    const entries = Object.entries(res.data);
     await this.tokens.registerAudiences(entries.map(([aud]) => aud));
 
-    let primary: TokenResponse | null = null;
+    const [, primary] = entries[0];
+    await this.tokens.persist(primary.access_token, primary.refresh_token ?? null);
 
-    for (const [aud, tokenResp] of entries) {
-      await this.tokens.persistScoped(aud, tokenResp.access_token, tokenResp.refresh_token ?? null);
-
-      if (!primary) {
-        primary = tokenResp;
-        await this.tokens.persist(tokenResp.access_token, tokenResp.refresh_token ?? null);
-        if (tokenResp.id_token) {
-          await this.settleIdToken(tokenResp.id_token);
-        }
-      }
+    for (const [aud, resp] of entries) {
+      await this.tokens.persistScoped(aud, resp.access_token, resp.refresh_token ?? null);
     }
 
-    this.cleanupFlow();
-    this.emit('login', res.data);
-
-    if (!primary) throw new AuthError(ErrorCodes.INVALID_GRANT, 'Empty token response');
+    await this.settle(primary);
     return primary;
   }
+
+  // --- Token Resolution ---
 
   private async resolveToken(audience: string): Promise<string | null> {
     const store = await this.tokens.loadScoped(audience);
@@ -403,27 +368,71 @@ export class Auth {
     return store.accessToken;
   }
 
-  private async settleIdToken(raw: string): Promise<void> {
-    try {
-      const claims = await verifyToken(raw, this.config.endpoint, this.config.clientId, this.http);
-      await Promise.resolve(this.storage.setItem(StorageKeys.ID_TOKEN, JSON.stringify(claims)));
-    } catch {
+  private async requireToken(audience?: string): Promise<string> {
+    const token = await this.getAccessToken(audience);
+    if (!token) {
+      throw new AuthError(
+        ErrorCodes.NOT_AUTHENTICATED,
+        audience ? `Not authenticated for ${audience}` : 'Not authenticated',
+      );
     }
+    return token;
   }
 
-  private cleanupFlow(): void {
+  // --- Settle & Cleanup ---
+
+  private async settle(resp: TokenResponse): Promise<void> {
+    if (resp.id_token) {
+      try {
+        const claims = await verifyToken(resp.id_token, this.config.endpoint, this.config.clientId, this.http);
+        await Promise.resolve(this.storage.setItem(StorageKeys.ID_TOKEN, JSON.stringify(claims)));
+      } catch {
+        // id_token 验签失败不阻塞登录，用户信息不可用但 access_token 仍有效
+      }
+    }
+    this.resetFlow();
+    this.emit('login', resp);
+  }
+
+  private resetFlow(): void {
     this.flow.popAudience();
     this.pendingAudience = null;
     this.pendingRedirectUri = null;
     this.pendingAudiences = null;
   }
 
+  // --- HTTP ---
+
+  private async post<T>(path: string, body: string, contentType: string): Promise<{ data: T }> {
+    const res = await this.http.request<T>({
+      method: 'POST',
+      url: `${this.config.endpoint}${path}`,
+      headers: { 'Content-Type': contentType },
+      body,
+    });
+    if (res.status !== 200) {
+      const err = res.data as unknown as { error?: string; error_description?: string };
+      throw new AuthError(err?.error ?? ErrorCodes.INVALID_GRANT, err?.error_description ?? `POST ${path} failed`);
+    }
+    return res;
+  }
+
+  // --- Events ---
+
+  private emit(type: AuthEventType, data?: unknown): void {
+    const event: AuthEvent = { type, data };
+    this.listeners.get(type)?.forEach((fn) => fn(event));
+  }
+
+  // --- URL & Crypto ---
+
   private buildAuthorizeUrl(
     pkce: PKCEParams, state: string, scopes: string[],
-    redirectUri?: string | null, audience?: string | null, audiences?: Record<string, AudienceScope> | null,
+    redirectUri?: string | null, audience?: string | null,
+    audiences?: Record<string, AudienceScope> | null,
   ): string {
     const params = new URLSearchParams({
-      response_type: 'code id_token',
+      response_type: 'code',
       client_id: this.config.clientId,
       code_challenge: pkce.codeChallenge,
       code_challenge_method: pkce.codeChallengeMethod,
@@ -433,7 +442,7 @@ export class Auth {
     if (audience) params.set('audience', audience);
     if (audiences) params.set('audiences', JSON.stringify(audiences));
     if (redirectUri) params.set('redirect_uri', redirectUri);
-    return `${this.config.endpoint}/authorize?${params.toString()}`;
+    return `${this.config.endpoint}/authorize?${params}`;
   }
 
   private nonce(): string {
@@ -445,6 +454,8 @@ export class Auth {
     }
     return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
   }
+
+  // --- Defaults ---
 
   private defaultStorage(): StorageAdapter {
     if (typeof window !== 'undefined' && window.localStorage) return new BrowserStorageAdapter();

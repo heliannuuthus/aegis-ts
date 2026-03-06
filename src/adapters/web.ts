@@ -1,40 +1,20 @@
-/**
- * Web 浏览器适配器
- */
-
-import type {
-  AuthConfig,
-  AudienceScope,
-  IDTokenClaims,
-} from '@/types';
+import type { AudienceScope, IDTokenClaims, AuthConfig } from '@/types';
 import { Auth } from '@core/client';
-import { BrowserStorageAdapter } from '@utils/storage';
+import { BrowserStorageAdapter } from '@core/storage';
 
-/** WebAuth 构造配置（不变的参数） */
 export interface WebAuthConfig {
-  /** 认证服务器地址 */
   endpoint: string;
-  /** 应用 Client ID */
   clientId: string;
-  /** 默认重定向 URI */
   redirectUri?: string;
 }
 
-/** authorize 方法的参数（每次认证可变） */
 export interface AuthorizeParams {
-  /** 单 audience */
   audience?: string;
-  /** 多 audience（优先于 audience） */
   audiences?: Record<string, AudienceScope>;
-  /** scope 列表 */
   scopes: string[];
-  /** 重定向 URI（覆盖 WebAuth 配置的 redirectUri） */
   redirectUri?: string;
-  /** OIDC prompt 参数 */
   prompt?: string;
-  /** 自定义 state */
   state?: string;
-  /** 登录完成后跳转的路径（不传则自动保存当前路径） */
   returnTo?: string;
 }
 
@@ -44,7 +24,6 @@ export class WebAuth {
 
   constructor(config: WebAuthConfig) {
     this.config = config;
-
     const authConfig: AuthConfig = {
       endpoint: config.endpoint,
       clientId: config.clientId,
@@ -84,16 +63,12 @@ export class WebAuth {
 
     window.history.replaceState({}, '', window.location.pathname);
 
-    if (error) {
-      return { success: false, error: errorDescription || error };
-    }
-    if (!code) {
-      return { success: false, error: 'No authorization code found' };
-    }
+    if (error) return { success: false, error: errorDescription || error };
+    if (!code) return { success: false, error: 'No authorization code found' };
 
     try {
       await this.auth.handleCallback(code, state ?? undefined);
-      const savedPath = this.auth.consumeReturnTo();
+      const savedPath = await this.auth.consumeReturnTo();
       return { success: true, redirectTo: savedPath || '/' };
     } catch (err) {
       return { success: false, error: (err as Error).message };
@@ -108,7 +83,7 @@ export class WebAuth {
     return this.auth.getUser();
   }
 
-  audiences(): string[] {
+  async audiences(): Promise<string[]> {
     return this.auth.audiences();
   }
 

@@ -1,7 +1,7 @@
 {
   "name": "@heliannuuthus/aegis-sdk",
   "version": "1.0.0",
-  "description": "Aegis Auth SDK - 支持 Web 和小程序的认证 SDK",
+  "description": "Aegis Auth SDK - Web 认证 SDK",
   "type": "module",
   "packageManager": "pnpm@10.31.0",
   "main": "./dist/index.cjs",
@@ -17,11 +17,6 @@
       "types": "./dist/web.d.ts",
       "import": "./dist/web.js",
       "require": "./dist/web.cjs"
-    },
-    "./taro": {
-      "types": "./dist/taro.d.ts",
-      "import": "./dist/taro.js",
-      "require": "./dist/taro.cjs"
     }
   },
   "files": [
@@ -37,14 +32,6 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "type-check": "tsc --noEmit",
     "prepublishOnly": "npm run build"
-  },
-  "peerDependencies": {
-    "@tarojs/taro": ">=4.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@tarojs/taro": {
-      "optional": true
-    }
   },
   "dependencies": {
     "paseto-ts": "^2.0.5"
@@ -64,9 +51,7 @@
     "oauth2",
     "pkce",
     "aegis",
-    "miniprogram",
-    "wechat",
-    "taro"
+    "web"
   ],
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"

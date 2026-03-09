@@ -82,8 +82,6 @@ export interface TokenStore {
   refreshToken: string | null;
 }
 
-export type MultiAudienceTokenStore = Record<string, TokenStore>;
-
 // ==================== ID Token ====================
 
 export interface IDTokenClaims {

@@ -4,23 +4,11 @@ import type {
   HttpClient,
   TokenResponse,
   TokenStore,
-  MultiAudienceTokenStore,
   IDTokenClaims,
   PublicKeysResponse,
 } from '@/types';
 import { AuthError, ErrorCodes } from '@/types';
 import { EventBus } from '@core/event-bus';
-
-const Keys = {
-  ACCESS_TOKEN: '###aegis@access-token###',
-  REFRESH_TOKEN: '###aegis@refresh-token###',
-  ID_TOKEN: '###aegis@id-token###',
-  AUDIENCES: '###aegis@audiences###',
-} as const;
-
-function scopedKey(base: string, audience: string): string {
-  return base.replace(/###$/, `@${audience}###`);
-}
 
 function extractExp(token: string): Date | null {
   try {
@@ -54,6 +42,7 @@ export class TokenManager {
   private endpoint: string;
   private clientId: string;
 
+  private idTokenKey: string;
   private keyCache: { keys: string[]; ts: number } | null = null;
   private readonly keyTTL = 5 * 60 * 1000;
 
@@ -63,58 +52,32 @@ export class TokenManager {
     this.http = config.http;
     this.endpoint = config.endpoint;
     this.clientId = config.clientId;
+    this.idTokenKey = `###aegis@${config.clientId}@id-token###`;
   }
 
-  // ==================== Access Token ====================
-
-  async persist(accessToken: string, refreshToken: string | null): Promise<void> {
-    await this.s.setItem(Keys.ACCESS_TOKEN, accessToken);
-    if (refreshToken) {
-      await this.s.setItem(Keys.REFRESH_TOKEN, refreshToken);
-    }
+  private scopedKey(kind: 'at' | 'rt', audience: string): string {
+    return `###aegis@${this.clientId}@${kind}@${audience}###`;
   }
 
-  async load(): Promise<TokenStore> {
-    const [accessToken, refreshToken] = await Promise.all([
-      this.s.getItem(Keys.ACCESS_TOKEN),
-      this.s.getItem(Keys.REFRESH_TOKEN),
-    ]);
-    return { accessToken, refreshToken };
-  }
-
-  async purge(): Promise<void> {
-    await Promise.all([
-      this.s.removeItem(Keys.ACCESS_TOKEN),
-      this.s.removeItem(Keys.REFRESH_TOKEN),
-    ]);
-  }
-
-  async expired(bufferMs = 5 * 60 * 1000): Promise<boolean> {
-    const token = await this.s.getItem(Keys.ACCESS_TOKEN);
-    if (!token) return true;
-    const exp = extractExp(token);
-    return !exp || Date.now() + bufferMs >= exp.getTime();
-  }
-
-  // ==================== Scoped Token (per-audience) ====================
+  // ==================== Scoped Token ====================
 
   async persistScoped(audience: string, accessToken: string, refreshToken: string | null): Promise<void> {
-    await this.s.setItem(scopedKey(Keys.ACCESS_TOKEN, audience), accessToken);
+    await this.s.setItem(this.scopedKey('at', audience), accessToken);
     if (refreshToken) {
-      await this.s.setItem(scopedKey(Keys.REFRESH_TOKEN, audience), refreshToken);
+      await this.s.setItem(this.scopedKey('rt', audience), refreshToken);
     }
   }
 
   async loadScoped(audience: string): Promise<TokenStore> {
     const [accessToken, refreshToken] = await Promise.all([
-      this.s.getItem(scopedKey(Keys.ACCESS_TOKEN, audience)),
-      this.s.getItem(scopedKey(Keys.REFRESH_TOKEN, audience)),
+      this.s.getItem(this.scopedKey('at', audience)),
+      this.s.getItem(this.scopedKey('rt', audience)),
     ]);
     return { accessToken, refreshToken };
   }
 
   async expiredScoped(audience: string, bufferMs = 5 * 60 * 1000): Promise<boolean> {
-    const token = await this.s.getItem(scopedKey(Keys.ACCESS_TOKEN, audience));
+    const token = await this.s.getItem(this.scopedKey('at', audience));
     if (!token) return true;
     const exp = extractExp(token);
     return !exp || Date.now() + bufferMs >= exp.getTime();
@@ -122,80 +85,32 @@ export class TokenManager {
 
   async purgeScoped(audience: string): Promise<void> {
     await Promise.all([
-      this.s.removeItem(scopedKey(Keys.ACCESS_TOKEN, audience)),
-      this.s.removeItem(scopedKey(Keys.REFRESH_TOKEN, audience)),
+      this.s.removeItem(this.scopedKey('at', audience)),
+      this.s.removeItem(this.scopedKey('rt', audience)),
     ]);
-  }
-
-  // ==================== Audience Registry ====================
-
-  async registerAudiences(audiences: string[]): Promise<void> {
-    await this.s.setItem(Keys.AUDIENCES, JSON.stringify(audiences));
-  }
-
-  async audiences(): Promise<string[]> {
-    const raw = await this.s.getItem(Keys.AUDIENCES);
-    if (!raw) return [];
-    try { return JSON.parse(raw); } catch { return []; }
-  }
-
-  async snapshot(): Promise<MultiAudienceTokenStore> {
-    const result: MultiAudienceTokenStore = {};
-    for (const aud of await this.audiences()) {
-      result[aud] = await this.loadScoped(aud);
-    }
-    return result;
-  }
-
-  async purgeAll(): Promise<void> {
-    for (const aud of await this.audiences()) {
-      await this.purgeScoped(aud);
-    }
-    await this.s.removeItem(Keys.AUDIENCES);
-    await this.purge();
-    await this.s.removeItem(Keys.ID_TOKEN);
   }
 
   // ==================== Token Resolution ====================
 
   async getAccessToken(audience?: string): Promise<string | null> {
-    if (audience) return this.resolveScoped(audience);
-
-    const store = await this.load();
-    if (!store.accessToken) return null;
-
-    if (await this.expired()) {
-      if (store.refreshToken) {
-        try {
-          return (await this.refreshToken(store.refreshToken)).access_token;
-        } catch {
-          this.events.emit('token_expired');
-          await this.purge();
-          return null;
-        }
-      }
-      this.events.emit('token_expired');
-      await this.purge();
-      return null;
-    }
-
-    return store.accessToken;
+    const aud = audience ?? this.clientId;
+    return this.resolveScoped(aud);
   }
 
-  async isAuthenticated(): Promise<boolean> {
-    const store = await this.load();
+  async isAuthenticated(audience?: string): Promise<boolean> {
+    const aud = audience ?? this.clientId;
+    const store = await this.loadScoped(aud);
     if (!store.accessToken) return false;
-    if (await this.expired(60_000)) return !!store.refreshToken;
+    if (await this.expiredScoped(aud, 60_000)) return !!store.refreshToken;
     return true;
   }
 
   async refreshToken(refreshToken?: string, audience?: string): Promise<TokenResponse> {
+    const aud = audience ?? this.clientId;
     let rt: string | null | undefined = refreshToken;
 
     if (!rt) {
-      const store = audience
-        ? await this.loadScoped(audience)
-        : await this.load();
+      const store = await this.loadScoped(aud);
       rt = store.refreshToken;
     }
 
@@ -220,12 +135,7 @@ export class TokenManager {
       throw new AuthError(ErrorCodes.INVALID_GRANT, 'Token refresh failed');
     }
 
-    if (audience) {
-      await this.persistScoped(audience, res.data.access_token, res.data.refresh_token ?? null);
-    } else {
-      await this.persist(res.data.access_token, res.data.refresh_token ?? null);
-    }
-
+    await this.persistScoped(aud, res.data.access_token, res.data.refresh_token ?? null);
     this.events.emit('token_refreshed', res.data);
     return res.data;
   }
@@ -239,10 +149,12 @@ export class TokenManager {
         try {
           return (await this.refreshToken(store.refreshToken, audience)).access_token;
         } catch {
+          this.events.emit('token_expired');
           await this.purgeScoped(audience);
           return null;
         }
       }
+      this.events.emit('token_expired');
       await this.purgeScoped(audience);
       return null;
     }
@@ -250,28 +162,47 @@ export class TokenManager {
     return store.accessToken;
   }
 
+  // ==================== Purge All ====================
+
+  async purgeAll(audiences?: string[]): Promise<void> {
+    if (audiences) {
+      for (const aud of audiences) {
+        await this.purgeScoped(aud);
+      }
+    }
+    await this.purgeScoped(this.clientId);
+    await this.s.removeItem(this.idTokenKey);
+  }
+
   // ==================== ID Token ====================
 
   async settleIdToken(idToken: string): Promise<void> {
     try {
       const claims = await this.verifyIdToken(idToken);
-      await this.s.setItem(Keys.ID_TOKEN, JSON.stringify(claims));
-    } catch {
-      // id_token 验签失败不阻塞登录
+      await this.s.setItem(this.idTokenKey, JSON.stringify(claims));
+      console.log('[aegis] settleIdToken: claims persisted, sub=%s', claims.sub);
+    } catch (e) {
+      console.log('[aegis] settleIdToken: verification failed, skipping', e);
     }
   }
 
   async getUser(): Promise<IDTokenClaims | null> {
-    const raw = await this.s.getItem(Keys.ID_TOKEN);
-    if (!raw) return null;
+    const raw = await this.s.getItem(this.idTokenKey);
+    if (!raw) {
+      console.log('[aegis] getUser: no id_token in storage');
+      return null;
+    }
     try {
       const claims: IDTokenClaims = JSON.parse(raw);
       if (new Date(claims.exp) <= new Date()) {
-        await this.s.removeItem(Keys.ID_TOKEN);
+        console.log('[aegis] getUser: id_token expired, removing');
+        await this.s.removeItem(this.idTokenKey);
         return null;
       }
+      console.log('[aegis] getUser: returning claims, sub=%s', claims.sub);
       return claims;
     } catch {
+      console.log('[aegis] getUser: failed to parse stored id_token');
       return null;
     }
   }
@@ -306,7 +237,7 @@ export class TokenManager {
 
     const res = await this.http.request<PublicKeysResponse>({
       method: 'GET',
-      url: `${this.endpoint}/pubkeys?client_id=${encodeURIComponent(this.clientId)}`,
+      url: `${this.endpoint}/api/pubkeys?client_id=${encodeURIComponent(this.clientId)}`,
       headers: {},
     });
 

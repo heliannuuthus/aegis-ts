@@ -12,14 +12,18 @@ import { generatePKCE } from '@utils/pkce';
 import { TokenManager } from '@core/token-manager';
 import { EventBus } from '@core/event-bus';
 
-const MetaKeys = {
-  CODE_VERIFIER: '###aegis@pkce-verifier###',
-  STATE: '###aegis@flow-state###',
-  AUDIENCE: '###aegis@flow-audience###',
-  REDIRECT_URI: '###aegis@flow-redirect-uri###',
-  AUDIENCES: '###aegis@flow-audiences###',
-  RETURN_TO: '###aegis@flow-return-to###',
-} as const;
+function metaKeys(clientId: string) {
+  return {
+    CODE_VERIFIER: `###aegis@${clientId}@pkce-verifier###`,
+    STATE: `###aegis@${clientId}@flow-state###`,
+    AUDIENCE: `###aegis@${clientId}@flow-audience###`,
+    REDIRECT_URI: `###aegis@${clientId}@flow-redirect-uri###`,
+    AUDIENCES: `###aegis@${clientId}@flow-audiences###`,
+    RETURN_TO: `###aegis@${clientId}@flow-return-to###`,
+  } as const;
+}
+
+type MetaKeys = ReturnType<typeof metaKeys>;
 
 export interface OAuthFlowConfig {
   endpoint: string;
@@ -39,6 +43,7 @@ export class OAuthFlow {
   private http: HttpClient;
   private tokens: TokenManager;
   private events: EventBus;
+  private keys: MetaKeys;
 
   constructor(config: OAuthFlowConfig) {
     this.endpoint = config.endpoint;
@@ -48,6 +53,7 @@ export class OAuthFlow {
     this.http = config.http;
     this.tokens = config.tokens;
     this.events = config.events;
+    this.keys = metaKeys(config.clientId);
   }
 
   async authorize(
@@ -61,30 +67,30 @@ export class OAuthFlow {
     const pkce = await generatePKCE();
     const state = customState ?? this.nonce();
 
-    await this.s.setItem(MetaKeys.CODE_VERIFIER, pkce.codeVerifier);
-    await this.s.setItem(MetaKeys.STATE, state);
-    if (audience) await this.s.setItem(MetaKeys.AUDIENCE, audience);
-    if (effectiveRedirectUri) await this.s.setItem(MetaKeys.REDIRECT_URI, effectiveRedirectUri);
-    if (audiences) await this.s.setItem(MetaKeys.AUDIENCES, JSON.stringify(audiences));
+    await this.s.setItem(this.keys.CODE_VERIFIER, pkce.codeVerifier);
+    await this.s.setItem(this.keys.STATE, state);
+    if (audience) await this.s.setItem(this.keys.AUDIENCE, audience);
+    if (effectiveRedirectUri) await this.s.setItem(this.keys.REDIRECT_URI, effectiveRedirectUri);
+    if (audiences) await this.s.setItem(this.keys.AUDIENCES, JSON.stringify(audiences));
 
     const url = this.buildUrl(pkce, state, scopes, effectiveRedirectUri, audience, audiences);
     return { url, pkce, state };
   }
 
   async handleCallback(code: string, state?: string): Promise<TokenResponse> {
-    const savedState = await this.pop(MetaKeys.STATE);
+    const savedState = await this.pop(this.keys.STATE);
     if (state && savedState && state !== savedState) {
       throw new AuthError(ErrorCodes.INVALID_REQUEST, 'State mismatch');
     }
 
-    const codeVerifier = await this.pop(MetaKeys.CODE_VERIFIER);
+    const codeVerifier = await this.pop(this.keys.CODE_VERIFIER);
     if (!codeVerifier) {
       throw new AuthError(ErrorCodes.INVALID_REQUEST, 'Code verifier not found');
     }
 
-    const redirectUri = await this.pop(MetaKeys.REDIRECT_URI);
-    const storedAudiences = await this.popJson<Record<string, AudienceScope>>(MetaKeys.AUDIENCES);
-    await this.pop(MetaKeys.AUDIENCE);
+    const redirectUri = await this.pop(this.keys.REDIRECT_URI);
+    const storedAudiences = await this.popJson<Record<string, AudienceScope>>(this.keys.AUDIENCES);
+    await this.pop(this.keys.AUDIENCE);
 
     const multiAudience = storedAudiences && Object.keys(storedAudiences).length > 0;
 
@@ -94,11 +100,11 @@ export class OAuthFlow {
   }
 
   async saveReturnTo(path: string): Promise<void> {
-    await this.s.setItem(MetaKeys.RETURN_TO, path);
+    await this.s.setItem(this.keys.RETURN_TO, path);
   }
 
   async consumeReturnTo(): Promise<string | null> {
-    return this.pop(MetaKeys.RETURN_TO);
+    return this.pop(this.keys.RETURN_TO);
   }
 
   // ==================== Internals ====================
@@ -116,7 +122,7 @@ export class OAuthFlow {
       '/api/token', body.toString(), 'application/x-www-form-urlencoded',
     );
 
-    await this.tokens.persist(data.access_token, data.refresh_token ?? null);
+    await this.tokens.persistScoped(this.clientId, data.access_token, data.refresh_token ?? null);
     await this.settle(data);
     return data;
   }
@@ -139,22 +145,21 @@ export class OAuthFlow {
       throw new AuthError(ErrorCodes.INVALID_GRANT, 'Empty token response');
     }
 
-    await this.tokens.registerAudiences(entries.map(([aud]) => aud));
-
-    const [, primary] = entries[0];
-    await this.tokens.persist(primary.access_token, primary.refresh_token ?? null);
-
     for (const [aud, resp] of entries) {
       await this.tokens.persistScoped(aud, resp.access_token, resp.refresh_token ?? null);
     }
 
+    const [, primary] = entries[0];
     await this.settle(primary);
     return primary;
   }
 
   private async settle(resp: TokenResponse): Promise<void> {
     if (resp.id_token) {
+      console.log('[aegis] settle: id_token received, persisting claims');
       await this.tokens.settleIdToken(resp.id_token);
+    } else {
+      console.log('[aegis] settle: no id_token in token response (scope may not include openid)');
     }
     this.events.emit('login', resp);
   }

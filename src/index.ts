@@ -1,6 +1,4 @@
 export { Auth } from '@core/client';
-export { MiniProgramAuth } from '@core/miniprogram';
-export type { MPLoginParams, MPAuthConfig } from '@core/miniprogram';
 
 export type {
   AuthConfig,
@@ -13,7 +11,6 @@ export type {
   TokenStore,
   AudienceScope,
   MultiAudienceTokenResponse,
-  MultiAudienceTokenStore,
   IDTokenClaims,
   IDPType,
   GrantType,

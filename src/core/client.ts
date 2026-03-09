@@ -72,12 +72,8 @@ export class Auth {
     return this.tokens.getAccessToken(audience);
   }
 
-  async audiences(): Promise<string[]> {
-    return this.tokens.audiences();
-  }
-
-  async isAuthenticated(): Promise<boolean> {
-    return this.tokens.isAuthenticated();
+  async isAuthenticated(audience?: string): Promise<boolean> {
+    return this.tokens.isAuthenticated(audience);
   }
 
   async refreshToken(refreshToken?: string, audience?: string): Promise<TokenResponse> {

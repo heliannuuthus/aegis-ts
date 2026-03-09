@@ -83,12 +83,8 @@ export class WebAuth {
     return this.auth.getUser();
   }
 
-  async audiences(): Promise<string[]> {
-    return this.auth.audiences();
-  }
-
-  async isAuthenticated(): Promise<boolean> {
-    return this.auth.isAuthenticated();
+  async isAuthenticated(audience?: string): Promise<boolean> {
+    return this.auth.isAuthenticated(audience);
   }
 
   async logout(options?: { returnTo?: string }): Promise<void> {

@@ -5,7 +5,6 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     web: 'src/adapters/web.ts',
-    taro: 'src/adapters/taro.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,
@@ -14,7 +13,6 @@ export default defineConfig({
   clean: true,
   treeshake: true,
   minify: false,
-  external: ['@tarojs/taro'],
   esbuildOptions(options) {
     options.alias = {
       '@': resolve(__dirname, 'src'),

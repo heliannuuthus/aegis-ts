@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Aegis Auth SDK - 支持 Web 和小程序的认证 SDK",
   "type": "module",
+  "packageManager": "pnpm@10.31.0",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

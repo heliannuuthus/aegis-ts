@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   ci:
@@ -18,4 +19,6 @@ jobs:
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     needs: [ci]
     uses: heliannuuthus/hephaestus/.github/workflows/ci-publish-node.yml@main
-    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write

@@ -55,12 +55,10 @@
   ],
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "author": "heliannuuthus",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/heliannuuthus/aegis-sdk"
-  }
+  "repository": "github:heliannuuthus/aegis-sdk"
 }

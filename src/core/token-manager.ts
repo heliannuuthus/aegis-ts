@@ -23,6 +23,20 @@ function extractExp(token: string): Date | null {
   }
 }
 
+/** 从 PASETO access_token 解析 aud，用于 persistScoped 的 key */
+export function extractAudience(token: string): string | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 3 || parts[0] !== 'v4' || parts[1] !== 'public') return null;
+    const decoded = atob(parts[2].replace(/-/g, '+').replace(/_/g, '/'));
+    if (decoded.length < 64) return null;
+    const payload = JSON.parse(decoded.slice(0, -64));
+    return typeof payload.aud === 'string' ? payload.aud : null;
+  } catch {
+    return null;
+  }
+}
+
 function toUrlSafe(b64: string): string {
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }

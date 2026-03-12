@@ -3,6 +3,7 @@ import type {
   AuthorizeOptions,
   StorageAdapter,
   HttpClient,
+  HttpRequestConfig,
   TokenResponse,
   CallbackResult,
   IDTokenClaims,
@@ -143,7 +144,7 @@ function defaultStorage(): StorageAdapter {
 
 function defaultHttpClient(): HttpClient {
   return {
-    async request(config) {
+    async request<T = unknown>(config: HttpRequestConfig) {
       const response = await fetch(config.url, {
         method: config.method,
         headers: config.headers,
@@ -151,9 +152,15 @@ function defaultHttpClient(): HttpClient {
         credentials: 'omit',
       });
       const text = await response.text();
-      let data;
-      try { data = JSON.parse(text); } catch { data = {}; }
-      return { status: response.status, data };
+      let data: unknown;
+      let rawText: string | undefined;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = {};
+        rawText = text.slice(0, 500);
+      }
+      return { status: response.status, data: data as T, rawText };
     },
   };
 }

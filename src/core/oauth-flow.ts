@@ -10,17 +10,15 @@ import type {
 } from '@/types';
 import { AuthError, ErrorCodes } from '@/types';
 import { generatePKCE } from '@utils/pkce';
-import { TokenManager } from '@core/token-manager';
+import { TokenManager, extractAudience } from '@core/token-manager';
 import { EventBus } from '@core/event-bus';
 
 function metaKeys(clientId: string) {
   return {
     CODE_VERIFIER: `###aegis@${clientId}@pkce-verifier###`,
-    STATE: `###aegis@${clientId}@flow-state###`,
-    AUDIENCE: `###aegis@${clientId}@flow-audience###`,
-    REDIRECT_URI: `###aegis@${clientId}@flow-redirect-uri###`,
-    AUDIENCES: `###aegis@${clientId}@flow-audiences###`,
-    RETURN_TO: `###aegis@${clientId}@flow-return-to###`,
+    STATE: `###aegis@${clientId}@state###`,
+    REDIRECT_URI: `###aegis@${clientId}@redirect-uri###`,
+    RETURN_TO: `###aegis@${clientId}@return-to###`,
   } as const;
 }
 
@@ -70,9 +68,7 @@ export class OAuthFlow {
 
     await this.s.setItem(this.keys.CODE_VERIFIER, pkce.codeVerifier);
     await this.s.setItem(this.keys.STATE, state);
-    if (audience) await this.s.setItem(this.keys.AUDIENCE, audience);
     if (effectiveRedirectUri) await this.s.setItem(this.keys.REDIRECT_URI, effectiveRedirectUri);
-    if (audiences) await this.s.setItem(this.keys.AUDIENCES, JSON.stringify(audiences));
 
     const url = this.buildUrl(pkce, state, scopes, effectiveRedirectUri, audience, audiences);
     return { url, pkce, state };
@@ -91,13 +87,8 @@ export class OAuthFlow {
       }
 
       const redirectUri = await this.pop(this.keys.REDIRECT_URI);
-      const storedAudiences = await this.popJson<Record<string, AudienceScope>>(this.keys.AUDIENCES);
-      await this.pop(this.keys.AUDIENCE);
 
-      const multiAudience = storedAudiences && Object.keys(storedAudiences).length > 0;
-      const tokens = multiAudience
-        ? await this.redeemMultiAudience(code, codeVerifier, redirectUri)
-        : await this.redeemCode(code, codeVerifier, redirectUri);
+      const tokens = await this.redeemCode(code, codeVerifier, redirectUri);
 
       const returnTo = await this.pop(this.keys.RETURN_TO);
       return { ...tokens, returnTo: returnTo ?? null };
@@ -114,8 +105,6 @@ export class OAuthFlow {
       this.s.removeItem(this.keys.STATE),
       this.s.removeItem(this.keys.CODE_VERIFIER),
       this.s.removeItem(this.keys.REDIRECT_URI),
-      this.s.removeItem(this.keys.AUDIENCES),
-      this.s.removeItem(this.keys.AUDIENCE),
     ]);
   }
 
@@ -125,7 +114,10 @@ export class OAuthFlow {
 
   // ==================== Internals ====================
 
-  private async redeemCode(code: string, verifier: string, redirectUri: string | null): Promise<TokenResponse> {
+  /** authorization_code 统一用 form，按响应结构解析：扁平或 keyed；单 audience 时从 access_token 解析 aud */
+  private async redeemCode(
+    code: string, verifier: string, redirectUri: string | null,
+  ): Promise<TokenResponse> {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -134,40 +126,31 @@ export class OAuthFlow {
     });
     if (redirectUri) body.set('redirect_uri', redirectUri);
 
-    const { data } = await this.post<TokenResponse>(
+    const { data } = await this.post<TokenResponse | MultiAudienceTokenResponse>(
       '/api/token', body.toString(), 'application/x-www-form-urlencoded',
     );
 
-    await this.tokens.persistScoped(this.clientId, data.access_token, data.refresh_token ?? null);
+    if (this.isKeyedResponse(data)) {
+      const entries = Object.entries(data);
+      if (entries.length === 0) {
+        throw new AuthError(ErrorCodes.INVALID_GRANT, 'Empty token response');
+      }
+      for (const [aud, resp] of entries) {
+        await this.tokens.persistScoped(aud, resp.access_token, resp.refresh_token ?? null);
+      }
+      const [, primary] = entries[0];
+      await this.settle(primary);
+      return primary;
+    }
+
+    const aud = extractAudience(data.access_token) ?? this.clientId;
+    await this.tokens.persistScoped(aud, data.access_token, data.refresh_token ?? null);
     await this.settle(data);
     return data;
   }
 
-  private async redeemMultiAudience(code: string, verifier: string, redirectUri: string | null): Promise<TokenResponse> {
-    const payload: Record<string, unknown> = {
-      grant_type: 'authorization_code',
-      code,
-      client_id: this.clientId,
-      code_verifier: verifier,
-    };
-    if (redirectUri) payload.redirect_uri = redirectUri;
-
-    const { data } = await this.post<MultiAudienceTokenResponse>(
-      '/api/token', JSON.stringify(payload), 'application/json',
-    );
-
-    const entries = Object.entries(data);
-    if (entries.length === 0) {
-      throw new AuthError(ErrorCodes.INVALID_GRANT, 'Empty token response');
-    }
-
-    for (const [aud, resp] of entries) {
-      await this.tokens.persistScoped(aud, resp.access_token, resp.refresh_token ?? null);
-    }
-
-    const [, primary] = entries[0];
-    await this.settle(primary);
-    return primary;
+  private isKeyedResponse(data: TokenResponse | MultiAudienceTokenResponse): data is MultiAudienceTokenResponse {
+    return typeof data === 'object' && data !== null && !('access_token' in data);
   }
 
   private async settle(resp: TokenResponse): Promise<void> {
@@ -189,7 +172,10 @@ export class OAuthFlow {
     });
     if (res.status !== 200) {
       const err = res.data as unknown as { error?: string; error_description?: string };
-      throw new AuthError(err?.error ?? ErrorCodes.INVALID_GRANT, err?.error_description ?? `POST ${path} failed`);
+      const code = err?.error ?? ErrorCodes.INVALID_GRANT;
+      const desc = err?.error_description ?? (res.rawText ? `HTTP ${res.status}: ${res.rawText}` : `POST ${path} failed (${res.status})`);
+      console.error('[aegis] token exchange failed:', { path, status: res.status, code, description: desc });
+      throw new AuthError(code, desc, undefined, res.status);
     }
     return res;
   }

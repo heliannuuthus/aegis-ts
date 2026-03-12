@@ -54,6 +54,8 @@ export interface HttpResponse<T = unknown> {
   status: number;
   data: T;
   headers?: Record<string, string>;
+  /** 当响应体非 JSON 时保留原始文本，便于错误诊断 */
+  rawText?: string;
 }
 
 export interface HttpClient {
@@ -124,7 +126,8 @@ export class AuthError extends Error {
   constructor(
     public code: string,
     public description?: string,
-    public data?: Record<string, unknown>
+    public data?: Record<string, unknown>,
+    public status?: number
   ) {
     super(description || code);
     this.name = 'AuthError';

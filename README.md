@@ -1,44 +1,48 @@
-# @aegis/sdk
+# @heliannuuthus/aegis-sdk
 
-Aegis Auth SDK - 支持 Web 和小程序的认证 SDK。
+Aegis Auth SDK - Web 认证 SDK，支持 OAuth 2.1 + PKCE。
 
 ## 特性
 
 - **OAuth 2.1 + PKCE**: 完整支持 OAuth 2.1 规范和 PKCE 流程
-- **多平台支持**: 支持 Web 浏览器和 Taro 小程序（微信/抖音/支付宝）
+- **Auth（底层）**: 纯逻辑层，无框架依赖
+- **WebAuth（浏览器）**: 针对 Web 的封装，含跳转、回调、URL 解析
 - **自动 Token 管理**: 自动刷新过期 Token
 - **TypeScript**: 完整的类型定义
-- **轻量级**: 零运行时依赖
+- **轻量级**: 最小化运行时依赖
 
 ## 安装
 
 ```bash
-npm install @aegis/sdk
+npm install @heliannuuthus/aegis-sdk
 # 或
-pnpm add @aegis/sdk
+pnpm add @heliannuuthus/aegis-sdk
 ```
 
 ## 快速开始
 
-### Web 浏览器
+### 方式一：WebAuth（浏览器）
+
+适用于 SPA，使用 `@heliannuuthus/aegis-sdk/web`：
 
 ```typescript
-import { createWebAuthClient } from '@aegis/sdk/web';
+import { WebAuth } from '@heliannuuthus/aegis-sdk/web';
 
-const auth = createWebAuthClient({
-  issuer: 'https://auth.example.com',
+const auth = new WebAuth({
+  endpoint: 'https://auth.example.com',
   clientId: 'your-client-id',
-  audience: 'your-service-id',
   redirectUri: 'https://app.example.com/auth/callback',
-  scopes: ['openid', 'profile'],
 });
 
 // 跳转到登录页
-await auth.loginWithRedirect();
+await auth.authorize({
+  scopes: ['openid', 'profile'],
+  audience: 'your-service-id',
+});
 
 // 在回调页面处理登录结果
 const result = await auth.handleRedirectCallback();
-if (result.success) {
+if (result.success && result.redirectTo) {
   window.location.href = result.redirectTo;
 }
 
@@ -46,131 +50,119 @@ if (result.success) {
 const token = await auth.getAccessToken();
 
 // 获取用户信息
-const user = await auth.getUserInfo();
+const user = await auth.getUser();
 
 // 登出
 await auth.logout();
 ```
 
-### Taro 小程序
+### 方式二：Auth（底层 API）
+
+适用于需要自定义存储或 HTTP 客户端的场景：
 
 ```typescript
-import { createTaroAuthClient } from '@aegis/sdk/taro';
+import { Auth, BrowserStorageAdapter } from '@heliannuuthus/aegis-sdk';
 
-const auth = createTaroAuthClient({
-  issuer: 'https://api.example.com',
-  debug: true,
+const auth = new Auth({
+  endpoint: 'https://auth.example.com',
+  clientId: 'your-client-id',
+  redirectUri: 'https://app.example.com/auth/callback',
+  storage: new BrowserStorageAdapter(),
 });
 
-// 一键登录（自动获取登录码）
-await auth.login();
-
-// 或使用自定义登录码
-await auth.loginWithCode({
-  code: loginCode,
-  nickname: '用户昵称',
-  avatar: 'https://example.com/avatar.png',
+// 获取授权 URL（不自动跳转）
+const { url } = await auth.authorize({
+  scopes: ['openid', 'profile'],
+  audience: 'your-service-id',
 });
+window.location.href = url;
 
-// 获取 Access Token
-const token = await auth.getAccessToken();
+// 处理回调（从 URL 获取 code 和 state）
+const result = await auth.handleCallback(code, state);
+// result.returnTo 为登录前保存的路径
+```
 
-// 获取用户信息
-const user = await auth.getUserInfo();
+### React 应用集成
 
-// 绑定手机号
-await auth.bindPhone(phoneCode);
+SDK 不提供 React 绑定。应用层可基于 Auth/WebAuth 实例，用事件订阅、SWR、zustand 等方式管理状态：
 
-// 登出
-await auth.logout();
+```typescript
+import { Auth } from '@heliannuuthus/aegis-sdk';
+
+const auth = new Auth({ ... });
+
+// 方式一：事件订阅
+auth.on('login', () => { /* 更新 UI */ });
+auth.on('logout', () => { /* 更新 UI */ });
+
+// 方式二：SWR 等数据获取
+const { data: user } = useSWR('auth-user', () => auth.getUser(), { ... });
 ```
 
 ## API 参考
 
-### Web Auth Client
-
-#### `createWebAuthClient(config)`
-
-创建 Web Auth Client 实例。
+### WebAuth (`@heliannuuthus/aegis-sdk/web`)
 
 ```typescript
 interface WebAuthConfig {
-  issuer: string;          // 认证服务器地址
-  clientId: string;        // 应用 Client ID
-  audience: string;        // 目标服务 ID
-  redirectUri?: string;    // 重定向 URI
-  scopes?: string[];       // 请求的 scope 列表
-  debug?: boolean;         // 启用调试日志
+  endpoint: string;
+  clientId: string;
+  redirectUri?: string;
 }
 ```
 
-#### 方法
-
 | 方法 | 说明 |
 |------|------|
-| `loginWithRedirect()` | 跳转到登录页面 |
-| `handleRedirectCallback()` | 处理登录回调 |
-| `getAccessToken()` | 获取 Access Token（自动刷新） |
-| `getUserInfo()` | 获取用户信息 |
-| `logout()` | 登出 |
-| `isAuthenticated()` | 检查是否已登录 |
-| `requireAuth()` | 路由守卫 |
+| `authorize(params)` | 跳转到登录页，支持 `scopes`、`audience`、`audiences`、`returnTo` 等 |
+| `handleRedirectCallback()` | 处理 OAuth 回调，返回 `{ success, error?, redirectTo? }` |
+| `getAccessToken(audience?)` | 获取 Access Token（自动刷新） |
+| `getUser()` | 获取 ID Token 中的用户信息 |
+| `isAuthenticated(audience?)` | 检查是否已登录 |
+| `logout(options?)` | 登出，可选 `returnTo` |
+| `on(event, listener)` | 监听事件 |
+| `off(event, listener)` | 取消监听 |
 
-### Taro Auth Client
-
-#### `createTaroAuthClient(config)`
-
-创建 Taro Auth Client 实例。
+### Auth（底层）
 
 ```typescript
-interface TaroAuthConfig {
-  issuer: string;          // 认证服务器地址
-  idp?: IDPType;           // 自定义 IDP（默认自动检测）
-  debug?: boolean;         // 启用调试日志
+interface AuthConfig {
+  endpoint: string;
+  clientId: string;
+  redirectUri?: string;
+  storage?: StorageAdapter;
+  httpClient?: HttpClient;
 }
 ```
 
-#### 方法
-
 | 方法 | 说明 |
 |------|------|
-| `login()` | 一键登录 |
-| `loginWithCode(params)` | 使用自定义登录码登录 |
-| `getAccessToken()` | 获取 Access Token |
-| `getUserInfo()` | 获取用户信息 |
-| `updateUserInfo(data)` | 更新用户信息 |
-| `bindPhone(phoneCode)` | 绑定手机号 |
+| `authorize(options)` | 返回 `{ url, pkce, state }`，不自动跳转 |
+| `handleCallback(code, state)` | 处理回调，返回 `CallbackResult`（含 `returnTo`） |
+| `getAccessToken(audience?)` | 获取 Access Token |
+| `getUser()` | 获取用户信息 |
+| `isAuthenticated(audience?)` | 检查是否已登录 |
 | `logout()` | 登出 |
-| `isAuthenticated()` | 检查是否已登录 |
+| `saveReturnTo(path)` | 保存登录后跳转路径 |
+| `getConnections()` | 获取可用登录方式 |
+| `createChallenge(req)` | 创建挑战（MFA 等） |
+| `verifyChallenge(id, req)` | 验证挑战 |
+| `login(req)` | 直接登录（挑战流程） |
+| `on(event, listener)` | 监听事件，返回取消函数 |
+| `off(event, listener)` | 取消监听 |
 
-## 事件监听
+### 事件
 
 ```typescript
-// 监听登录事件
-auth.on('login', (event) => {
-  console.log('用户已登录', event.data);
-});
-
-// 监听登出事件
-auth.on('logout', () => {
-  console.log('用户已登出');
-});
-
-// 监听 Token 刷新事件
-auth.on('token_refreshed', (event) => {
-  console.log('Token 已刷新', event.data);
-});
-
-// 监听 Token 过期事件
-auth.on('token_expired', () => {
-  console.log('Token 已过期');
-});
+auth.on('login', (event) => { /* 登录成功 */ });
+auth.on('logout', () => { /* 登出 */ });
+auth.on('token_refreshed', (event) => { /* Token 刷新 */ });
+auth.on('token_expired', () => { /* Token 过期 */ });
 ```
 
-## 自定义存储
+### 自定义存储
 
 ```typescript
-import { AuthClient } from '@aegis/sdk';
+import { Auth } from '@heliannuuthus/aegis-sdk';
 
 const customStorage = {
   getItem: (key) => AsyncStorage.getItem(key),
@@ -178,40 +170,20 @@ const customStorage = {
   removeItem: (key) => AsyncStorage.removeItem(key),
 };
 
-const auth = new AuthClient({
-  issuer: 'https://auth.example.com',
+const auth = new Auth({
+  endpoint: 'https://auth.example.com',
   clientId: 'your-client-id',
-  audience: 'your-service-id',
   redirectUri: 'https://app.example.com/callback',
   storage: customStorage,
 });
 ```
 
-## 工具函数
+## 导出概览
 
-```typescript
-import { 
-  generatePKCE, 
-  parseJWT, 
-  isJWTExpired 
-} from '@aegis/sdk';
-
-// 生成 PKCE 参数
-const pkce = await generatePKCE();
-console.log(pkce.codeVerifier, pkce.codeChallenge);
-
-// 解析 JWT
-const claims = parseJWT(token);
-console.log(claims.sub, claims.exp);
-
-// 检查 JWT 是否过期
-const expired = isJWTExpired(token);
-```
-
-## 相关项目
-
-- **Aegis UI**: `aegis-ui` - 认证界面
-- **Helios**: 后端服务
+- **类**: `Auth`, `AuthError`, `BrowserStorageAdapter`, `MemoryStorageAdapter`
+- **WebAuth**: `@heliannuuthus/aegis-sdk/web`
+- **类型**: `AuthConfig`, `AuthorizeOptions`, `CallbackResult`, `IDTokenClaims` 等
+- **常量**: `ErrorCodes`, `VERSION`
 
 ## License
 

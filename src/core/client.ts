@@ -95,14 +95,6 @@ export class Auth {
   // ==================== Session ====================
 
   async logout(): Promise<void> {
-    const token = await this.getAccessToken();
-    if (token) {
-      try {
-        await this.api.revokeSession(token);
-      } catch {
-        // logout API 失败不阻塞本地清理
-      }
-    }
     await this.tokens.purgeAll();
     this.tokens.invalidateKeys();
     this.events.emit('logout');

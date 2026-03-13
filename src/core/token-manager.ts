@@ -5,6 +5,7 @@ import type {
   TokenResponse,
   TokenStore,
   IDTokenClaims,
+  PublicKeyInfo,
   PublicKeysResponse,
 } from '@/types';
 import { AuthError, ErrorCodes } from '@/types';
@@ -258,11 +259,20 @@ export class TokenManager {
       headers: {},
     });
 
-    if (res.status !== 200 || !res.data?.keys) {
+    if (res.status !== 200 || !res.data) {
       throw new AuthError(ErrorCodes.SERVER_ERROR, 'Failed to fetch public keys');
     }
 
-    const keys = res.data.keys.map((k) => `k4.public.${toUrlSafe(k.public_key)}`);
+    // main 为当前签发 key，keys 为所有可验签 key；合并并去重，确保 main 一定参与验证
+    const keyInfos = [res.data.main, ...(res.data.keys ?? [])].filter(
+      (k): k is PublicKeyInfo => !!k?.public_key,
+    );
+
+    if (keyInfos.length === 0) {
+      throw new AuthError(ErrorCodes.SERVER_ERROR, 'No public keys in response');
+    }
+
+    const keys = keyInfos.map((k) => `k4.public.${toUrlSafe(k.public_key)}`);
     this.keyCache = { keys, ts: Date.now() };
     return keys;
   }

@@ -88,7 +88,12 @@ export class WebAuth {
 
   async logout(options?: { returnTo?: string }): Promise<void> {
     await this.auth.logout();
-    if (options?.returnTo) window.location.href = options.returnTo;
+    const returnTo =
+      options?.returnTo ?? (typeof window !== 'undefined' ? `${window.location.origin}/` : '/');
+    const url = new URL(`${this.config.endpoint}/api/logout`);
+    url.searchParams.set('client_id', this.config.clientId);
+    url.searchParams.set('return_to', returnTo);
+    window.location.href = url.toString();
   }
 
   on: Auth['on'] = (...args) => this.auth.on(...args);

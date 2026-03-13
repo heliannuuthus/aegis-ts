@@ -150,6 +150,9 @@ export class TokenManager {
     }
 
     await this.persistScoped(aud, res.data.access_token, res.data.refresh_token ?? null);
+    if (res.data.id_token) {
+      await this.settleIdToken(res.data.id_token);
+    }
     this.events.emit('token_refreshed', res.data);
     return res.data;
   }

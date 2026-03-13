@@ -1,6 +1,6 @@
 {
   "name": "@heliannuuthus/aegis-sdk",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Aegis Auth SDK - Web 认证 SDK",
   "type": "module",
   "packageManager": "pnpm@10.31.0",

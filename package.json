@@ -1,5 +1,5 @@
 {
-  "name": "@heliannuuthus/aegis-sdk",
+  "name": "@heliannuuthus/aegis-ts",
   "version": "1.2.0",
   "description": "Aegis Auth SDK - Web 认证 SDK",
   "type": "module",
@@ -60,5 +60,5 @@
   },
   "author": "heliannuuthus",
   "license": "MIT",
-  "repository": "github:heliannuuthus/aegis-sdk"
+  "repository": "github:heliannuuthus/aegis-ts"
 }

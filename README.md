@@ -1,4 +1,4 @@
-# @heliannuuthus/aegis-sdk
+# @heliannuuthus/aegis-ts
 
 Aegis Auth SDK - Web 认证 SDK，支持 OAuth 2.1 + PKCE。
 
@@ -14,19 +14,19 @@ Aegis Auth SDK - Web 认证 SDK，支持 OAuth 2.1 + PKCE。
 ## 安装
 
 ```bash
-npm install @heliannuuthus/aegis-sdk
+npm install @heliannuuthus/aegis-ts
 # 或
-pnpm add @heliannuuthus/aegis-sdk
+pnpm add @heliannuuthus/aegis-ts
 ```
 
 ## 快速开始
 
 ### 方式一：WebAuth（浏览器）
 
-适用于 SPA，使用 `@heliannuuthus/aegis-sdk/web`：
+适用于 SPA，使用 `@heliannuuthus/aegis-ts/web`：
 
 ```typescript
-import { WebAuth } from '@heliannuuthus/aegis-sdk/web';
+import { WebAuth } from '@heliannuuthus/aegis-ts/web';
 
 const auth = new WebAuth({
   endpoint: 'https://auth.example.com',
@@ -61,7 +61,7 @@ await auth.logout();
 适用于需要自定义存储或 HTTP 客户端的场景：
 
 ```typescript
-import { Auth, BrowserStorageAdapter } from '@heliannuuthus/aegis-sdk';
+import { Auth, BrowserStorageAdapter } from '@heliannuuthus/aegis-ts';
 
 const auth = new Auth({
   endpoint: 'https://auth.example.com',
@@ -87,7 +87,7 @@ const result = await auth.handleCallback(code, state);
 SDK 不提供 React 绑定。应用层可基于 Auth/WebAuth 实例，用事件订阅、SWR、zustand 等方式管理状态：
 
 ```typescript
-import { Auth } from '@heliannuuthus/aegis-sdk';
+import { Auth } from '@heliannuuthus/aegis-ts';
 
 const auth = new Auth({ ... });
 
@@ -101,7 +101,7 @@ const { data: user } = useSWR('auth-user', () => auth.getUser(), { ... });
 
 ## API 参考
 
-### WebAuth (`@heliannuuthus/aegis-sdk/web`)
+### WebAuth (`@heliannuuthus/aegis-ts/web`)
 
 ```typescript
 interface WebAuthConfig {
@@ -162,7 +162,7 @@ auth.on('token_expired', () => { /* Token 过期 */ });
 ### 自定义存储
 
 ```typescript
-import { Auth } from '@heliannuuthus/aegis-sdk';
+import { Auth } from '@heliannuuthus/aegis-ts';
 
 const customStorage = {
   getItem: (key) => AsyncStorage.getItem(key),
@@ -181,7 +181,7 @@ const auth = new Auth({
 ## 导出概览
 
 - **类**: `Auth`, `AuthError`, `BrowserStorageAdapter`, `MemoryStorageAdapter`
-- **WebAuth**: `@heliannuuthus/aegis-sdk/web`
+- **WebAuth**: `@heliannuuthus/aegis-ts/web`
 - **类型**: `AuthConfig`, `AuthorizeOptions`, `CallbackResult`, `IDTokenClaims` 等
 - **常量**: `ErrorCodes`, `VERSION`
 

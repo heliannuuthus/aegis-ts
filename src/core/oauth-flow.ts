@@ -155,10 +155,7 @@ export class OAuthFlow {
 
   private async settle(resp: TokenResponse): Promise<void> {
     if (resp.id_token) {
-      console.log('[aegis] settle: id_token received, persisting claims');
       await this.tokens.settleIdToken(resp.id_token);
-    } else {
-      console.log('[aegis] settle: no id_token in token response (scope may not include openid)');
     }
     this.events.emit('login', resp);
   }

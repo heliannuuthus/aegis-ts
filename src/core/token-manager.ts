@@ -195,32 +195,21 @@ export class TokenManager {
   // ==================== ID Token ====================
 
   async settleIdToken(idToken: string): Promise<void> {
-    try {
-      const claims = await this.verifyIdToken(idToken);
-      await this.s.setItem(this.idTokenKey, JSON.stringify(claims));
-      console.log('[aegis] settleIdToken: claims persisted, sub=%s', claims.sub);
-    } catch (e) {
-      console.log('[aegis] settleIdToken: verification failed, skipping', e);
-    }
+    const claims = await this.verifyIdToken(idToken);
+    await this.s.setItem(this.idTokenKey, JSON.stringify(claims));
   }
 
   async getUser(): Promise<IDTokenClaims | null> {
     const raw = await this.s.getItem(this.idTokenKey);
-    if (!raw) {
-      console.log('[aegis] getUser: no id_token in storage');
-      return null;
-    }
+    if (!raw) return null;
     try {
       const claims: IDTokenClaims = JSON.parse(raw);
       if (new Date(claims.exp) <= new Date()) {
-        console.log('[aegis] getUser: id_token expired, removing');
         await this.s.removeItem(this.idTokenKey);
         return null;
       }
-      console.log('[aegis] getUser: returning claims, sub=%s', claims.sub);
       return claims;
     } catch {
-      console.log('[aegis] getUser: failed to parse stored id_token');
       return null;
     }
   }

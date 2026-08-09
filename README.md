@@ -26,18 +26,18 @@ pnpm add @heliannuuthus/aegis-ts
 适用于 SPA，使用 `@heliannuuthus/aegis-ts/web`：
 
 ```typescript
-import { WebAuth } from '@heliannuuthus/aegis-ts/web';
+import { WebAuth } from "@heliannuuthus/aegis-ts/web";
 
 const auth = new WebAuth({
-  endpoint: 'https://auth.example.com',
-  clientId: 'your-client-id',
-  redirectUri: 'https://app.example.com/auth/callback',
+  endpoint: "https://auth.example.com",
+  clientId: "your-client-id",
+  redirectUri: "https://app.example.com/auth/callback",
 });
 
 // 跳转到登录页
 await auth.authorize({
-  scopes: ['openid', 'profile'],
-  audience: 'your-service-id',
+  scopes: ["openid", "profile"],
+  audience: "your-service-id",
 });
 
 // 在回调页面处理登录结果
@@ -61,19 +61,19 @@ await auth.logout();
 适用于需要自定义存储或 HTTP 客户端的场景：
 
 ```typescript
-import { Auth, BrowserStorageAdapter } from '@heliannuuthus/aegis-ts';
+import { Auth, BrowserStorageAdapter } from "@heliannuuthus/aegis-ts";
 
 const auth = new Auth({
-  endpoint: 'https://auth.example.com',
-  clientId: 'your-client-id',
-  redirectUri: 'https://app.example.com/auth/callback',
+  endpoint: "https://auth.example.com",
+  clientId: "your-client-id",
+  redirectUri: "https://app.example.com/auth/callback",
   storage: new BrowserStorageAdapter(),
 });
 
 // 获取授权 URL（不自动跳转）
 const { url } = await auth.authorize({
-  scopes: ['openid', 'profile'],
-  audience: 'your-service-id',
+  scopes: ["openid", "profile"],
+  audience: "your-service-id",
 });
 window.location.href = url;
 
@@ -107,20 +107,20 @@ const { data: user } = useSWR('auth-user', () => auth.getUser(), { ... });
 interface WebAuthConfig {
   endpoint: string;
   clientId: string;
-  redirectUri?: string;
+  redirectUri: string;
 }
 ```
 
-| 方法 | 说明 |
-|------|------|
-| `authorize(params)` | 跳转到登录页，支持 `scopes`、`audience`、`audiences`、`returnTo` 等 |
-| `handleRedirectCallback()` | 处理 OAuth 回调，返回 `{ success, error?, redirectTo? }` |
-| `getAccessToken(audience?)` | 获取 Access Token（自动刷新） |
-| `getUser()` | 获取 ID Token 中的用户信息 |
-| `isAuthenticated(audience?)` | 检查是否已登录 |
-| `logout(options?)` | 登出，可选 `returnTo` |
-| `on(event, listener)` | 监听事件 |
-| `off(event, listener)` | 取消监听 |
+| 方法                         | 说明                                                                |
+| ---------------------------- | ------------------------------------------------------------------- |
+| `authorize(params)`          | 跳转到登录页，支持 `scopes`、`audience`、`audiences`、`returnTo` 等 |
+| `handleRedirectCallback()`   | 处理 OAuth 回调，返回 `{ success, error?, redirectTo? }`            |
+| `getAccessToken(audience?)`  | 获取 Access Token（自动刷新）                                       |
+| `getUser()`                  | 获取 ID Token 中的用户信息                                          |
+| `isAuthenticated(audience?)` | 检查是否已登录                                                      |
+| `logout(options?)`           | 登出，可选 `returnTo`                                               |
+| `on(event, listener)`        | 监听事件                                                            |
+| `off(event, listener)`       | 取消监听                                                            |
 
 ### Auth（底层）
 
@@ -128,41 +128,49 @@ interface WebAuthConfig {
 interface AuthConfig {
   endpoint: string;
   clientId: string;
-  redirectUri?: string;
+  redirectUri: string;
   storage?: StorageAdapter;
   httpClient?: HttpClient;
 }
 ```
 
-| 方法 | 说明 |
-|------|------|
-| `authorize(options)` | 返回 `{ url, pkce, state }`，不自动跳转 |
-| `handleCallback(code, state)` | 处理回调，返回 `CallbackResult`（含 `returnTo`） |
-| `getAccessToken(audience?)` | 获取 Access Token |
-| `getUser()` | 获取用户信息 |
-| `isAuthenticated(audience?)` | 检查是否已登录 |
-| `logout()` | 登出 |
-| `saveReturnTo(path)` | 保存登录后跳转路径 |
-| `getConnections()` | 获取可用登录方式 |
-| `createChallenge(req)` | 创建挑战（MFA 等） |
-| `verifyChallenge(id, req)` | 验证挑战 |
-| `login(req)` | 直接登录（挑战流程） |
-| `on(event, listener)` | 监听事件，返回取消函数 |
-| `off(event, listener)` | 取消监听 |
+| 方法                          | 说明                                                    |
+| ----------------------------- | ------------------------------------------------------- |
+| `authorize(options)`          | 返回 `{ url, pkce, state }`，不自动跳转                 |
+| `handleCallback(code, state)` | 处理回调，返回 `CallbackResult`（含 `returnTo`）        |
+| `getAccessToken(audience?)`   | 获取 Access Token                                       |
+| `getUser()`                   | 获取用户信息                                            |
+| `isAuthenticated(audience?)`  | 检查是否已登录                                          |
+| `logout()`                    | 登出                                                    |
+| `saveReturnTo(path)`          | 保存登录后跳转路径                                      |
+| `getConnections()`            | 获取可用登录方式                                        |
+| `createChallenge(req)`        | 创建挑战（MFA 等）                                      |
+| `verifyChallenge(id, req)`    | 验证挑战                                                |
+| `login(req)`                  | 提交登录，并返回由 HTTP 300 `Location` 描述的下一步动作 |
+| `on(event, listener)`         | 监听事件，返回取消函数                                  |
+| `off(event, listener)`        | 取消监听                                                |
 
 ### 事件
 
 ```typescript
-auth.on('login', (event) => { /* 登录成功 */ });
-auth.on('logout', () => { /* 登出 */ });
-auth.on('token_refreshed', (event) => { /* Token 刷新 */ });
-auth.on('token_expired', () => { /* Token 过期 */ });
+auth.on("login", (event) => {
+  /* 登录成功 */
+});
+auth.on("logout", () => {
+  /* 登出 */
+});
+auth.on("token_refreshed", (event) => {
+  /* Token 刷新 */
+});
+auth.on("token_expired", () => {
+  /* Token 过期 */
+});
 ```
 
 ### 自定义存储
 
 ```typescript
-import { Auth } from '@heliannuuthus/aegis-ts';
+import { Auth } from "@heliannuuthus/aegis-ts";
 
 const customStorage = {
   getItem: (key) => AsyncStorage.getItem(key),
@@ -171,9 +179,9 @@ const customStorage = {
 };
 
 const auth = new Auth({
-  endpoint: 'https://auth.example.com',
-  clientId: 'your-client-id',
-  redirectUri: 'https://app.example.com/callback',
+  endpoint: "https://auth.example.com",
+  clientId: "your-client-id",
+  redirectUri: "https://app.example.com/callback",
   storage: customStorage,
 });
 ```

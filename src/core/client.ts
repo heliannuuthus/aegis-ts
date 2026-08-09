@@ -13,15 +13,16 @@ import type {
   VerifyChallengeRequest,
   VerifyChallengeResponse,
   LoginRequest,
+  RedirectAction,
   PKCEParams,
   AuthEventType,
   AuthEventListener,
-} from '@/types';
-import { EventBus } from '@core/event-bus';
-import { TokenManager } from '@core/token-manager';
-import { OAuthFlow } from '@core/oauth-flow';
-import { API } from '@core/api';
-import { BrowserStorageAdapter } from '@core/storage';
+} from "@/types";
+import { EventBus } from "@core/event-bus";
+import { TokenManager } from "@core/token-manager";
+import { OAuthFlow } from "@core/oauth-flow";
+import { API } from "@core/api";
+import { BrowserStorageAdapter } from "@core/storage";
 
 export class Auth {
   private events: EventBus;
@@ -59,7 +60,7 @@ export class Auth {
   // ==================== OAuth Flow ====================
 
   async authorize(
-    options: AuthorizeOptions
+    options: AuthorizeOptions,
   ): Promise<{ url: string; pkce: PKCEParams; state: string }> {
     return this.flow.authorize(options);
   }
@@ -78,7 +79,10 @@ export class Auth {
     return this.tokens.isAuthenticated(audience);
   }
 
-  async refreshToken(refreshToken?: string, audience?: string): Promise<TokenResponse> {
+  async refreshToken(
+    refreshToken?: string,
+    audience?: string,
+  ): Promise<TokenResponse> {
     return this.tokens.refreshToken(refreshToken, audience);
   }
 
@@ -97,7 +101,7 @@ export class Auth {
   async logout(): Promise<void> {
     await this.tokens.purgeAll();
     this.tokens.invalidateKeys();
-    this.events.emit('logout');
+    this.events.emit("logout");
   }
 
   // ==================== Challenge / Login ====================
@@ -106,15 +110,20 @@ export class Auth {
     return this.api.getConnections();
   }
 
-  async createChallenge(req: CreateChallengeRequest): Promise<CreateChallengeResponse> {
+  async createChallenge(
+    req: CreateChallengeRequest,
+  ): Promise<CreateChallengeResponse> {
     return this.api.createChallenge(req);
   }
 
-  async verifyChallenge(challengeId: string, req: VerifyChallengeRequest): Promise<VerifyChallengeResponse> {
+  async verifyChallenge(
+    challengeId: string,
+    req: VerifyChallengeRequest,
+  ): Promise<VerifyChallengeResponse> {
     return this.api.verifyChallenge(challengeId, req);
   }
 
-  async login(req: LoginRequest): Promise<void> {
+  async login(req: LoginRequest): Promise<RedirectAction> {
     return this.api.login(req);
   }
 
@@ -130,8 +139,11 @@ export class Auth {
 }
 
 function defaultStorage(): StorageAdapter {
-  if (typeof window !== 'undefined' && window.localStorage) return new BrowserStorageAdapter();
-  throw new Error('No default storage available. Provide a custom StorageAdapter.');
+  if (typeof window !== "undefined" && window.localStorage)
+    return new BrowserStorageAdapter();
+  throw new Error(
+    "No default storage available. Provide a custom StorageAdapter.",
+  );
 }
 
 function defaultHttpClient(): HttpClient {
@@ -141,7 +153,7 @@ function defaultHttpClient(): HttpClient {
         method: config.method,
         headers: config.headers,
         body: config.body,
-        credentials: 'omit',
+        credentials: "include",
       });
       const text = await response.text();
       let data: unknown;
@@ -152,7 +164,11 @@ function defaultHttpClient(): HttpClient {
         data = {};
         rawText = text.slice(0, 500);
       }
-      return { status: response.status, data: data as T, rawText };
+      const headers: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        headers[key] = value;
+      });
+      return { status: response.status, data: data as T, headers, rawText };
     },
   };
 }

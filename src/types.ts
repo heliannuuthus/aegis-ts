@@ -1,25 +1,25 @@
 // ==================== 基础类型 ====================
 
 export type IDPType =
-  | 'wechat:mp'
-  | 'tt:mp'
-  | 'alipay:mp'
-  | 'wechat:web'
-  | 'wecom'
-  | 'github'
-  | 'google'
-  | 'email';
+  | "wechat:mp"
+  | "tt:mp"
+  | "alipay:mp"
+  | "wechat:web"
+  | "wecom"
+  | "github"
+  | "google"
+  | "email";
 
-export type GrantType = 'authorization_code' | 'refresh_token';
+export type GrantType = "authorization_code" | "refresh_token";
 
-export type CodeChallengeMethod = 'S256';
+export type CodeChallengeMethod = "S256";
 
 // ==================== SDK 配置 ====================
 
 export interface AuthConfig {
   endpoint: string;
   clientId: string;
-  redirectUri?: string;
+  redirectUri: string;
   storage?: StorageAdapter;
   httpClient?: HttpClient;
 }
@@ -43,7 +43,7 @@ export interface StorageAdapter {
 // ==================== HTTP 客户端 ====================
 
 export interface HttpRequestConfig {
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   url: string;
   headers?: Record<string, string>;
   body?: string | FormData;
@@ -127,34 +127,34 @@ export class AuthError extends Error {
     public code: string,
     public description?: string,
     public data?: Record<string, unknown>,
-    public status?: number
+    public status?: number,
   ) {
     super(description || code);
-    this.name = 'AuthError';
+    this.name = "AuthError";
   }
 }
 
 export const ErrorCodes = {
-  INVALID_REQUEST: 'invalid_request',
-  UNAUTHORIZED_CLIENT: 'unauthorized_client',
-  ACCESS_DENIED: 'access_denied',
-  INVALID_CLIENT: 'invalid_client',
-  INVALID_GRANT: 'invalid_grant',
-  INVALID_TOKEN: 'invalid_token',
-  SERVER_ERROR: 'server_error',
-  NETWORK_ERROR: 'network_error',
-  TOKEN_EXPIRED: 'token_expired',
-  NOT_AUTHENTICATED: 'not_authenticated',
+  INVALID_REQUEST: "invalid_request",
+  UNAUTHORIZED_CLIENT: "unauthorized_client",
+  ACCESS_DENIED: "access_denied",
+  INVALID_CLIENT: "invalid_client",
+  INVALID_GRANT: "invalid_grant",
+  INVALID_TOKEN: "invalid_token",
+  SERVER_ERROR: "server_error",
+  NETWORK_ERROR: "network_error",
+  TOKEN_EXPIRED: "token_expired",
+  NOT_AUTHENTICATED: "not_authenticated",
 } as const;
 
 // ==================== 事件 ====================
 
 export type AuthEventType =
-  | 'login'
-  | 'logout'
-  | 'token_refreshed'
-  | 'token_expired'
-  | 'error';
+  | "login"
+  | "logout"
+  | "token_refreshed"
+  | "token_expired"
+  | "error";
 
 export interface AuthEvent {
   type: AuthEventType;
@@ -167,70 +167,74 @@ export type AuthEventListener = (event: AuthEvent) => void;
 
 export interface ConnectionConfig {
   connection: string;
-  strategy: string[];
   identifier?: string;
-  require?: RequireConfig;
-  delegate?: DelegateConfig;
-}
-
-export interface RequireConfig {
-  vchan: string[];
-}
-
-export interface DelegateConfig {
-  mfa: string[];
-}
-
-export interface VChanConfig {
-  connection: string;
-  strategy: string;
-  identifier: string;
+  strategy?: string[];
+  delegate?: string[];
+  require?: string[];
 }
 
 export interface ConnectionsResponse {
-  idp: ConnectionConfig[];
-  vchan: VChanConfig[];
-  mfa: string[];
+  idp?: ConnectionConfig[];
+  vchan?: ConnectionConfig[];
+  factor?: ConnectionConfig[];
 }
 
 // ==================== Challenge ====================
 
-export type ChallengeType =
-  | 'captcha'
-  | 'email-otp'
-  | 'totp'
-  | 'sms-otp'
-  | 'tg-otp';
+export type ChallengeType = string;
+export type ChallengeChannelType = string;
+
+export interface ChallengeRequiredConfig {
+  identifier?: string;
+  strategy?: string[];
+}
+
+export type ChallengeRequired = Record<string, ChallengeRequiredConfig>;
 
 export interface CreateChallengeRequest {
-  type: ChallengeType;
-  flow_id?: string;
-  user_id?: string;
-  email?: string;
-  captcha_token?: string;
+  client_id: string;
+  audience: string;
+  type?: ChallengeType;
+  channel_type: ChallengeChannelType;
+  channel: string;
 }
 
 export interface CreateChallengeResponse {
-  challenge_id: string;
-  type?: string;
+  challenge_id?: string;
+  retry_after?: number;
+  required?: ChallengeRequired;
+  challenge_token?: string;
   expires_in?: number;
-  data?: Record<string, unknown>;
-  required?: VChanConfig;
+  options?: unknown;
 }
 
 export interface VerifyChallengeRequest {
-  proof: string;
+  type: string;
+  strategy?: string;
+  proof: unknown;
 }
 
 export interface VerifyChallengeResponse {
   verified: boolean;
-  challenge_id?: string;
-  data?: Record<string, unknown>;
+  challenge_token?: string;
+  required?: ChallengeRequired;
+  retry_after?: number;
+  expires_in?: number;
+  options?: unknown;
 }
 
 // ==================== Login ====================
 
 export interface LoginRequest {
   connection: string;
-  data: Record<string, unknown>;
+  strategy?: string;
+  principal?: string;
+  uid?: string;
+  proof?: unknown;
+}
+
+export interface RedirectAction {
+  location: string;
+  actions: string[];
+  params: Record<string, string>;
 }

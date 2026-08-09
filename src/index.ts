@@ -1,4 +1,4 @@
-export { Auth } from '@core/client';
+export { Auth } from "@core/client";
 
 export type {
   AuthConfig,
@@ -20,20 +20,21 @@ export type {
   AuthEventType,
   AuthEventListener,
   ConnectionConfig,
-  RequireConfig,
-  DelegateConfig,
-  VChanConfig,
   ConnectionsResponse,
   ChallengeType,
+  ChallengeChannelType,
+  ChallengeRequiredConfig,
+  ChallengeRequired,
   CreateChallengeRequest,
   CreateChallengeResponse,
   VerifyChallengeRequest,
   VerifyChallengeResponse,
   LoginRequest,
-} from '@/types';
+  RedirectAction,
+} from "@/types";
 
-export { AuthError, ErrorCodes } from '@/types';
+export { AuthError, ErrorCodes } from "@/types";
 
-export { BrowserStorageAdapter, MemoryStorageAdapter } from '@core/storage';
+export { BrowserStorageAdapter, MemoryStorageAdapter } from "@core/storage";
 
-export const VERSION = '1.0.0';
+export const VERSION = "1.0.0";

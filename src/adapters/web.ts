@@ -1,11 +1,11 @@
-import type { AudienceScope, IDTokenClaims, AuthConfig } from '@/types';
-import { Auth } from '@core/client';
-import { BrowserStorageAdapter } from '@core/storage';
+import type { AudienceScope, IDTokenClaims, AuthConfig } from "@/types";
+import { Auth } from "@core/client";
+import { BrowserStorageAdapter } from "@core/storage";
 
 export interface WebAuthConfig {
   endpoint: string;
   clientId: string;
-  redirectUri?: string;
+  redirectUri: string;
 }
 
 export interface AuthorizeParams {
@@ -34,7 +34,8 @@ export class WebAuth {
   }
 
   async authorize(params: AuthorizeParams): Promise<void> {
-    const returnTo = params.returnTo ?? (window.location.pathname + window.location.search);
+    const returnTo =
+      params.returnTo ?? window.location.pathname + window.location.search;
     await this.auth.saveReturnTo(returnTo);
 
     const audiences = params.audiences ?? undefined;
@@ -56,19 +57,19 @@ export class WebAuth {
     redirectTo?: string;
   }> {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const state = params.get('state');
-    const error = params.get('error');
-    const errorDescription = params.get('error_description');
+    const code = params.get("code");
+    const state = params.get("state");
+    const error = params.get("error");
+    const errorDescription = params.get("error_description");
 
-    window.history.replaceState({}, '', window.location.pathname);
+    window.history.replaceState({}, "", window.location.pathname);
 
     if (error) return { success: false, error: errorDescription || error };
-    if (!code) return { success: false, error: 'No authorization code found' };
+    if (!code) return { success: false, error: "No authorization code found" };
 
     try {
       const result = await this.auth.handleCallback(code, state ?? undefined);
-      return { success: true, redirectTo: result.returnTo || '/' };
+      return { success: true, redirectTo: result.returnTo || "/" };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -89,13 +90,14 @@ export class WebAuth {
   async logout(options?: { returnTo?: string }): Promise<void> {
     await this.auth.logout();
     const returnTo =
-      options?.returnTo ?? (typeof window !== 'undefined' ? `${window.location.origin}/` : '/');
+      options?.returnTo ??
+      (typeof window !== "undefined" ? `${window.location.origin}/` : "/");
     const url = new URL(`${this.config.endpoint}/api/logout`);
-    url.searchParams.set('client_id', this.config.clientId);
-    url.searchParams.set('return_to', returnTo);
+    url.searchParams.set("client_id", this.config.clientId);
+    url.searchParams.set("return_to", returnTo);
     window.location.href = url.toString();
   }
 
-  on: Auth['on'] = (...args) => this.auth.on(...args);
-  off: Auth['off'] = (...args) => this.auth.off(...args);
+  on: Auth["on"] = (...args) => this.auth.on(...args);
+  off: Auth["off"] = (...args) => this.auth.off(...args);
 }

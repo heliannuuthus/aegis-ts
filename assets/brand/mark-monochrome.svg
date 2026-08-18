@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="aegis-title">
+  <title id="aegis-title">Aegis mark</title>
+  <g fill="none" stroke="#111827" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M128 24 204 52v60c0 52-30 94-76 120-46-26-76-68-76-120V52z"/>
+  <path d="M128 78a34 34 0 1 1-24 10"/>
+  <path d="M128 146v38"/>
+  <circle cx="128" cy="112" r="8" fill="#111827" stroke="none"/>
+  </g>
+</svg>

@@ -1,6 +1,19 @@
-# @heliannuuthus/aegis-ts
+<p align="center">
+  <img src="./assets/brand/mark.svg" width="112" alt="Aegis logo" />
+</p>
 
-Aegis Auth SDK - Web 认证 SDK，支持 OAuth 2.1 + PKCE。
+<h1 align="center">Aegis TypeScript</h1>
+
+<p align="center">
+  <strong>A framework-independent OAuth 2.1 and PKCE SDK for browser applications.</strong><br />
+  面向浏览器应用、与框架无关的 OAuth 2.1 与 PKCE SDK。
+</p>
+
+## Overview / 项目简介
+
+`@heliannuuthus/aegis-ts` provides browser redirects, callback validation, token lifecycle management, user information, and replaceable storage and HTTP adapters.
+
+`@heliannuuthus/aegis-ts` 提供浏览器跳转、回调校验、令牌生命周期管理、用户信息读取以及可替换的存储与 HTTP 适配器。
 
 ## 特性
 

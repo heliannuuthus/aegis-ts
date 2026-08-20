@@ -1,28 +1,19 @@
 <p align="center">
-  <img src="./assets/brand/hero-ice.png" width="256" alt="Aegis emblem suspended in a clear ice block" />
+  <img src="./assets/brand/hero-ice.png" width="256" alt="Aegis TypeScript logo" />
 </p>
 
 <h1 align="center">Aegis TypeScript</h1>
 
-<p align="center">
-  <strong>A framework-independent OAuth 2.1 and PKCE SDK for browser applications.</strong><br />
-  面向浏览器应用、与框架无关的 OAuth 2.1 与 PKCE SDK。
-</p>
+`@heliannuuthus/aegis-ts` 是给浏览器用的认证 SDK。它把 OAuth 2.1 + PKCE 那一套流程封好，帮你处理登录跳转、回调校验、令牌的生命周期和用户信息读取，跟框架无关——React、Vue 都能用，但也不逼你绑定任何框架。
 
-## Overview / 项目简介
+`@heliannuuthus/aegis-ts` is a framework-agnostic browser SDK for OAuth 2.1 + PKCE: redirects, callback validation, token lifecycle, and user info, with pluggable storage and HTTP adapters.
 
-`@heliannuuthus/aegis-ts` provides browser redirects, callback validation, token lifecycle management, user information, and replaceable storage and HTTP adapters.
+它分两层：
 
-`@heliannuuthus/aegis-ts` 提供浏览器跳转、回调校验、令牌生命周期管理、用户信息读取以及可替换的存储与 HTTP 适配器。
+- **`Auth`** 是底层纯逻辑，不碰 DOM、不碰框架，适合自己定制存储或 HTTP 客户端的场景。
+- **`WebAuth`** 是浏览器封装，把跳转、回调、URL 解析这些 Web 行为接好了，SPA 直接用。
 
-## 特性
-
-- **OAuth 2.1 + PKCE**: 完整支持 OAuth 2.1 规范和 PKCE 流程
-- **Auth（底层）**: 纯逻辑层，无框架依赖
-- **WebAuth（浏览器）**: 针对 Web 的封装，含跳转、回调、URL 解析
-- **自动 Token 管理**: 自动刷新过期 Token
-- **TypeScript**: 完整的类型定义
-- **轻量级**: 最小化运行时依赖
+运行时依赖刻意压得很轻，目前核心只依赖 `paseto-ts`。
 
 ## 安装
 
@@ -34,9 +25,9 @@ pnpm add @heliannuuthus/aegis-ts
 
 ## 快速开始
 
-### 方式一：WebAuth（浏览器）
+### WebAuth（浏览器）
 
-适用于 SPA，使用 `@heliannuuthus/aegis-ts/web`：
+适合 SPA，从 `@heliannuuthus/aegis-ts/web` 引入：
 
 ```typescript
 import { WebAuth } from "@heliannuuthus/aegis-ts/web";
@@ -59,19 +50,15 @@ if (result.success && result.redirectTo) {
   window.location.href = result.redirectTo;
 }
 
-// 获取 Access Token
+// 获取 Access Token / 用户信息 / 登出
 const token = await auth.getAccessToken();
-
-// 获取用户信息
 const user = await auth.getUser();
-
-// 登出
 await auth.logout();
 ```
 
-### 方式二：Auth（底层 API）
+### Auth（底层）
 
-适用于需要自定义存储或 HTTP 客户端的场景：
+需要自定义存储或 HTTP 客户端时用这一层：
 
 ```typescript
 import { Auth, BrowserStorageAdapter } from "@heliannuuthus/aegis-ts";
@@ -83,32 +70,32 @@ const auth = new Auth({
   storage: new BrowserStorageAdapter(),
 });
 
-// 获取授权 URL（不自动跳转）
+// 拿到授权 URL，自己决定怎么跳
 const { url } = await auth.authorize({
   scopes: ["openid", "profile"],
   audience: "your-service-id",
 });
 window.location.href = url;
 
-// 处理回调（从 URL 获取 code 和 state）
+// 从回调 URL 里取 code 和 state 后处理
 const result = await auth.handleCallback(code, state);
 // result.returnTo 为登录前保存的路径
 ```
 
-### React 应用集成
+### React 集成
 
-SDK 不提供 React 绑定。应用层可基于 Auth/WebAuth 实例，用事件订阅、SWR、zustand 等方式管理状态：
+SDK 本身不提供 React 绑定。应用层基于 `Auth`/`WebAuth` 实例，用事件订阅、SWR、zustand 等方式自己管状态：
 
 ```typescript
 import { Auth } from '@heliannuuthus/aegis-ts';
 
 const auth = new Auth({ ... });
 
-// 方式一：事件订阅
+// 事件订阅
 auth.on('login', () => { /* 更新 UI */ });
 auth.on('logout', () => { /* 更新 UI */ });
 
-// 方式二：SWR 等数据获取
+// 或配合 SWR
 const { data: user } = useSWR('auth-user', () => auth.getUser(), { ... });
 ```
 
@@ -124,16 +111,15 @@ interface WebAuthConfig {
 }
 ```
 
-| 方法                         | 说明                                                                |
-| ---------------------------- | ------------------------------------------------------------------- |
-| `authorize(params)`          | 跳转到登录页，支持 `scopes`、`audience`、`audiences`、`returnTo` 等 |
-| `handleRedirectCallback()`   | 处理 OAuth 回调，返回 `{ success, error?, redirectTo? }`            |
-| `getAccessToken(audience?)`  | 获取 Access Token（自动刷新）                                       |
-| `getUser()`                  | 获取 ID Token 中的用户信息                                          |
-| `isAuthenticated(audience?)` | 检查是否已登录                                                      |
-| `logout(options?)`           | 登出，可选 `returnTo`                                               |
-| `on(event, listener)`        | 监听事件                                                            |
-| `off(event, listener)`       | 取消监听                                                            |
+| 方法 | 说明 |
+| --- | --- |
+| `authorize(params)` | 跳转到登录页，支持 `scopes`、`audience`、`audiences`、`returnTo` 等 |
+| `handleRedirectCallback()` | 处理 OAuth 回调，返回 `{ success, error?, redirectTo? }` |
+| `getAccessToken(audience?)` | 获取 Access Token（自动刷新） |
+| `getUser()` | 读取 ID Token 中的用户信息 |
+| `isAuthenticated(audience?)` | 检查是否已登录 |
+| `logout(options?)` | 登出，可选 `returnTo` |
+| `on(event, listener)` / `off(event, listener)` | 订阅 / 取消事件 |
 
 ### Auth（底层）
 
@@ -147,37 +133,27 @@ interface AuthConfig {
 }
 ```
 
-| 方法                          | 说明                                                    |
-| ----------------------------- | ------------------------------------------------------- |
-| `authorize(options)`          | 返回 `{ url, pkce, state }`，不自动跳转                 |
-| `handleCallback(code, state)` | 处理回调，返回 `CallbackResult`（含 `returnTo`）        |
-| `getAccessToken(audience?)`   | 获取 Access Token                                       |
-| `getUser()`                   | 获取用户信息                                            |
-| `isAuthenticated(audience?)`  | 检查是否已登录                                          |
-| `logout()`                    | 登出                                                    |
-| `saveReturnTo(path)`          | 保存登录后跳转路径                                      |
-| `getConnections()`            | 获取可用登录方式                                        |
-| `createChallenge(req)`        | 创建挑战（MFA 等）                                      |
-| `verifyChallenge(id, req)`    | 验证挑战                                                |
-| `login(req)`                  | 提交登录，并返回由 HTTP 300 `Location` 描述的下一步动作 |
-| `on(event, listener)`         | 监听事件，返回取消函数                                  |
-| `off(event, listener)`        | 取消监听                                                |
+| 方法 | 说明 |
+| --- | --- |
+| `authorize(options)` | 返回 `{ url, pkce, state }`，不自动跳转 |
+| `handleCallback(code, state)` | 处理回调，返回 `CallbackResult`（含 `returnTo`） |
+| `getAccessToken(audience?)` | 获取 Access Token |
+| `getUser()` | 获取用户信息 |
+| `isAuthenticated(audience?)` | 检查是否已登录 |
+| `logout()` | 登出 |
+| `saveReturnTo(path)` | 保存登录后跳转路径 |
+| `getConnections()` | 获取可用登录方式 |
+| `createChallenge(req)` / `verifyChallenge(id, req)` | 创建 / 验证挑战（MFA 等） |
+| `login(req)` | 提交登录，返回由 HTTP 300 `Location` 描述的下一步 |
+| `on(event, listener)` / `off(event, listener)` | 订阅 / 取消事件 |
 
 ### 事件
 
 ```typescript
-auth.on("login", (event) => {
-  /* 登录成功 */
-});
-auth.on("logout", () => {
-  /* 登出 */
-});
-auth.on("token_refreshed", (event) => {
-  /* Token 刷新 */
-});
-auth.on("token_expired", () => {
-  /* Token 过期 */
-});
+auth.on("login", (event) => { /* 登录成功 */ });
+auth.on("logout", () => { /* 登出 */ });
+auth.on("token_refreshed", (event) => { /* Token 刷新 */ });
+auth.on("token_expired", () => { /* Token 过期 */ });
 ```
 
 ### 自定义存储

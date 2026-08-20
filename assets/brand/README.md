@@ -1,6 +1,6 @@
 # Aegis brand assets
 
-The Aegis mark belongs to the shared Heliantheon visual family: geometric construction, rounded strokes, strong negative space, and a single product accent.
+The Aegis mark follows a shared visual language: geometric construction, rounded strokes, strong negative space, and a single product accent.
 
 | File | Purpose |
 | --- | --- |

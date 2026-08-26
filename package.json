@@ -1,6 +1,6 @@
 {
   "name": "@heliantheons/aegis-ts",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Aegis Auth SDK - Web 认证 SDK",
   "type": "module",
   "packageManager": "pnpm@10.31.0",
@@ -74,5 +74,12 @@
   },
   "author": "heliannuuthus",
   "license": "MIT",
-  "repository": "github:heliantheons/aegis-ts"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heliantheons/aegis-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/heliantheons/aegis-ts/issues"
+  },
+  "homepage": "https://github.com/heliantheons/aegis-ts#readme"
 }

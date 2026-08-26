@@ -1,6 +1,6 @@
 # Aegis TS
 
-`@heliannuuthus/aegis-ts` 是 Web 认证 SDK，支持 OAuth 2.1 + PKCE、浏览器跳转、回调处理、token 管理与用户信息读取。
+`@heliantheons/aegis-ts` 是 Web 认证 SDK，支持 OAuth 2.1 + PKCE、浏览器跳转、回调处理、token 管理与用户信息读取。
 
 ## 技术栈
 

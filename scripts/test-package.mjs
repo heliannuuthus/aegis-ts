@@ -36,8 +36,8 @@ try {
         "--input-type=module",
         "--eval",
         [
-          'import * as root from "@heliannuuthus/aegis-ts";',
-          'import * as web from "@heliannuuthus/aegis-ts/web";',
+          'import * as root from "@heliantheons/aegis-ts";',
+          'import * as web from "@heliantheons/aegis-ts/web";',
           "console.log(JSON.stringify({ root: Object.keys(root), web: Object.keys(web), version: root.VERSION }));",
         ].join(""),
       ],
@@ -56,8 +56,8 @@ try {
         "--input-type=commonjs",
         "--eval",
         [
-          'const root = require("@heliannuuthus/aegis-ts");',
-          'const web = require("@heliannuuthus/aegis-ts/web");',
+          'const root = require("@heliantheons/aegis-ts");',
+          'const web = require("@heliantheons/aegis-ts/web");',
           "console.log(JSON.stringify({ root: Object.keys(root), web: Object.keys(web), version: root.VERSION }));",
         ].join(""),
       ],
@@ -72,8 +72,8 @@ try {
   writeFileSync(
     join(fixture, "consumer.mts"),
     [
-      'import { Auth, WebAuth, type WebAuthConfig } from "@heliannuuthus/aegis-ts";',
-      'import { WebAuth as CompatibleWebAuth } from "@heliannuuthus/aegis-ts/web";',
+      'import { Auth, WebAuth, type WebAuthConfig } from "@heliantheons/aegis-ts";',
+      'import { WebAuth as CompatibleWebAuth } from "@heliantheons/aegis-ts/web";',
       "const config: WebAuthConfig = { endpoint: 'https://aegis.example.com', clientId: 'portal', redirectUri: 'https://portal.example.com/callback' };",
       "void [Auth, WebAuth, CompatibleWebAuth, config];",
     ].join("\n"),
@@ -81,8 +81,8 @@ try {
   writeFileSync(
     join(fixture, "consumer.cts"),
     [
-      'import SDK = require("@heliannuuthus/aegis-ts");',
-      'import WebSDK = require("@heliannuuthus/aegis-ts/web");',
+      'import SDK = require("@heliantheons/aegis-ts");',
+      'import WebSDK = require("@heliantheons/aegis-ts/web");',
       "void [SDK.Auth, SDK.WebAuth, WebSDK.WebAuth];",
     ].join("\n"),
   );

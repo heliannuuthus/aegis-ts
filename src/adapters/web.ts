@@ -1,4 +1,10 @@
-import type { AudienceScope, IDTokenClaims, AuthConfig } from "@/types";
+import type {
+  AudienceScope,
+  AuthConfig,
+  HttpClient,
+  IDTokenClaims,
+  StorageAdapter,
+} from "@/types";
 import { Auth } from "@core/client";
 import { BrowserStorageAdapter } from "@core/storage";
 
@@ -6,6 +12,8 @@ export interface WebAuthConfig {
   endpoint: string;
   clientId: string;
   redirectUri: string;
+  storage?: StorageAdapter;
+  httpClient?: HttpClient;
 }
 
 export interface AuthorizeParams {
@@ -28,7 +36,8 @@ export class WebAuth {
       endpoint: config.endpoint,
       clientId: config.clientId,
       redirectUri: config.redirectUri,
-      storage: new BrowserStorageAdapter(),
+      storage: config.storage ?? new BrowserStorageAdapter(),
+      httpClient: config.httpClient,
     };
     this.auth = new Auth(authConfig);
   }
@@ -45,6 +54,7 @@ export class WebAuth {
       audience,
       audiences,
       scopes: params.scopes,
+      prompt: params.prompt,
       state: params.state,
       redirectUri: params.redirectUri ?? this.config.redirectUri,
     });

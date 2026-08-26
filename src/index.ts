@@ -1,4 +1,5 @@
 export { Auth } from "@core/client";
+export { WebAuth } from "@adapters/web";
 
 export type {
   AuthConfig,
@@ -31,10 +32,15 @@ export type {
   VerifyChallengeResponse,
   LoginRequest,
   RedirectAction,
+  PublicKeyInfo,
+  PublicKeysResponse,
+  CodeChallengeMethod,
 } from "@/types";
+
+export type { AuthorizeParams, WebAuthConfig } from "@adapters/web";
 
 export { AuthError, ErrorCodes } from "@/types";
 
 export { BrowserStorageAdapter, MemoryStorageAdapter } from "@core/storage";
 
-export const VERSION = "1.0.0";
+export const VERSION = "1.3.2";

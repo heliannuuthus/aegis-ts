@@ -28,6 +28,7 @@ export interface AuthorizeOptions {
   audience?: string;
   audiences?: Record<string, AudienceScope>;
   scopes: string[];
+  prompt?: string;
   state?: string;
   redirectUri?: string;
 }

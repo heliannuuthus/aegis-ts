@@ -58,7 +58,7 @@ export class OAuthFlow {
   async authorize(
     options: AuthorizeOptions
   ): Promise<{ url: string; pkce: PKCEParams; state: string }> {
-    const { scopes, state: customState, redirectUri } = options;
+    const { scopes, prompt, state: customState, redirectUri } = options;
     const audiences = options.audiences ?? null;
     const audience = audiences ? null : (options.audience ?? null);
     const effectiveRedirectUri = redirectUri ?? this.redirectUri ?? null;
@@ -70,7 +70,15 @@ export class OAuthFlow {
     await this.s.setItem(this.keys.STATE, state);
     if (effectiveRedirectUri) await this.s.setItem(this.keys.REDIRECT_URI, effectiveRedirectUri);
 
-    const url = this.buildUrl(pkce, state, scopes, effectiveRedirectUri, audience, audiences);
+    const url = this.buildUrl(
+      pkce,
+      state,
+      scopes,
+      effectiveRedirectUri,
+      audience,
+      audiences,
+      prompt,
+    );
     return { url, pkce, state };
   }
 
@@ -181,6 +189,7 @@ export class OAuthFlow {
     pkce: PKCEParams, state: string, scopes: string[],
     redirectUri?: string | null, audience?: string | null,
     audiences?: Record<string, AudienceScope> | null,
+    prompt?: string,
   ): string {
     const params = new URLSearchParams({
       response_type: 'code',
@@ -193,6 +202,7 @@ export class OAuthFlow {
     if (audience) params.set('audience', audience);
     if (audiences) params.set('audiences', JSON.stringify(audiences));
     if (redirectUri) params.set('redirect_uri', redirectUri);
+    if (prompt) params.set('prompt', prompt);
     return `${this.endpoint}/authorize?${params}`;
   }
 

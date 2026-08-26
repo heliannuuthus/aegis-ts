@@ -13,6 +13,7 @@ export default defineConfig({
   clean: true,
   treeshake: true,
   minify: false,
+  noExternal: ['paseto-ts'],
   esbuildOptions(options) {
     options.alias = {
       '@': resolve(__dirname, 'src'),
